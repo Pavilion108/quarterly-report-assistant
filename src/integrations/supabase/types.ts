@@ -14,16 +14,342 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_logs: {
+        Row: {
+          created_at: string
+          id: string
+          log_date: string
+          progress_notes: string | null
+          project_id: string
+          tasks: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          log_date?: string
+          progress_notes?: string | null
+          project_id: string
+          tasks: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          log_date?: string
+          progress_notes?: string | null
+          project_id?: string
+          tasks?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      focus_areas: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          name: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "focus_areas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      observation_history: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          id: string
+          observation_id: string
+          snapshot: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          id?: string
+          observation_id: string
+          snapshot?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          id?: string
+          observation_id?: string
+          snapshot?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "observation_history_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "observations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      observations: {
+        Row: {
+          accepted_text: string | null
+          author_id: string
+          created_at: string
+          focus_area_id: string | null
+          id: string
+          included_in_report: boolean
+          original_text: string
+          project_id: string
+          rewritten_text: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          accepted_text?: string | null
+          author_id: string
+          created_at?: string
+          focus_area_id?: string | null
+          id?: string
+          included_in_report?: boolean
+          original_text: string
+          project_id: string
+          rewritten_text?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          accepted_text?: string | null
+          author_id?: string
+          created_at?: string
+          focus_area_id?: string | null
+          id?: string
+          included_in_report?: boolean
+          original_text?: string
+          project_id?: string
+          rewritten_text?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "observations_focus_area_id_fkey"
+            columns: ["focus_area_id"]
+            isOneToOne: false
+            referencedRelation: "focus_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "observations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+        }
+        Relationships: []
+      }
+      project_members: {
+        Row: {
+          added_at: string
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          added_at?: string
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          client: string | null
+          created_at: string
+          end_date: string | null
+          finalize_date: string | null
+          id: string
+          manager_id: string
+          name: string
+          quarter: string
+          start_date: string | null
+          status: string
+          template_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          client?: string | null
+          created_at?: string
+          end_date?: string | null
+          finalize_date?: string | null
+          id?: string
+          manager_id: string
+          name: string
+          quarter: string
+          start_date?: string | null
+          status?: string
+          template_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client?: string | null
+          created_at?: string
+          end_date?: string | null
+          finalize_date?: string | null
+          id?: string
+          manager_id?: string
+          name?: string
+          quarter?: string
+          start_date?: string | null
+          status?: string
+          template_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      report_snapshots: {
+        Row: {
+          created_at: string
+          created_by: string
+          file_path: string
+          id: string
+          kind: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          file_path: string
+          id?: string
+          kind: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          file_path?: string
+          id?: string
+          kind?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_snapshots_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_project_manager: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_project_member: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "manager" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +476,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "manager", "member"],
+    },
   },
 } as const
