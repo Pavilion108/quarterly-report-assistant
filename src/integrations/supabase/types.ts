@@ -238,6 +238,8 @@ export type Database = {
           quarter: string
           start_date: string | null
           status: string
+          template_data: string | null
+          template_filename: string | null
           template_path: string | null
           updated_at: string
         }
@@ -252,6 +254,8 @@ export type Database = {
           quarter: string
           start_date?: string | null
           status?: string
+          template_data?: string | null
+          template_filename?: string | null
           template_path?: string | null
           updated_at?: string
         }
@@ -266,6 +270,8 @@ export type Database = {
           quarter?: string
           start_date?: string | null
           status?: string
+          template_data?: string | null
+          template_filename?: string | null
           template_path?: string | null
           updated_at?: string
         }
@@ -275,7 +281,8 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
-          file_path: string
+          file_data: string | null
+          file_path: string | null
           id: string
           kind: string
           project_id: string
@@ -283,7 +290,8 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
-          file_path: string
+          file_data?: string | null
+          file_path?: string | null
           id?: string
           kind: string
           project_id: string
@@ -291,7 +299,8 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
-          file_path?: string
+          file_data?: string | null
+          file_path?: string | null
           id?: string
           kind?: string
           project_id?: string
