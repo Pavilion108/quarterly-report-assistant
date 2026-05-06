@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppProjectsNewRouteImport } from './routes/_app/projects.new'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -33,16 +34,23 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProjectsNewRoute = AppProjectsNewRouteImport.update({
+  id: '/projects/new',
+  path: '/projects/new',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AppDashboardRoute
+  '/projects/new': typeof AppProjectsNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AppDashboardRoute
+  '/projects/new': typeof AppProjectsNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,13 +58,20 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/projects/new': typeof AppProjectsNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard'
+  fullPaths: '/' | '/auth' | '/dashboard' | '/projects/new'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard'
-  id: '__root__' | '/' | '/_app' | '/auth' | '/_app/dashboard'
+  to: '/' | '/auth' | '/dashboard' | '/projects/new'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/auth'
+    | '/_app/dashboard'
+    | '/_app/projects/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,15 +110,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/projects/new': {
+      id: '/_app/projects/new'
+      path: '/projects/new'
+      fullPath: '/projects/new'
+      preLoaderRoute: typeof AppProjectsNewRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
+  AppProjectsNewRoute: typeof AppProjectsNewRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
+  AppProjectsNewRoute: AppProjectsNewRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
