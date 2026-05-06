@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, FileCheck2 } from "lucide-react";
+import { Download, FileCheck2, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import PptxGenJS from "pptxgenjs";
 
@@ -12,16 +12,19 @@ export function ProjectReport({ project, isManager }: { project: any; isManager:
   const [obs, setObs] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
   const [snaps, setSnaps] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>(null);
 
   const load = async () => {
-    const [o, a, s] = await Promise.all([
+    const [o, a, s, m] = await Promise.all([
       supabase.from("observations").select("*, focus_areas:focus_area_id(name,display_order)")
         .eq("project_id", project.id).eq("included_in_report", true)
         .order("sort_order"),
       supabase.from("focus_areas").select("*").eq("project_id", project.id).order("display_order"),
       supabase.from("report_snapshots").select("*").eq("project_id", project.id).order("created_at", { ascending: false }),
+      supabase.from("project_metrics").select("*").eq("project_id", project.id).maybeSingle(),
     ]);
     setObs(o.data ?? []); setAreas(a.data ?? []); setSnaps(s.data ?? []);
+    setMetrics(m.data ?? null);
   };
   useEffect(() => { load(); }, [project.id]);
 
@@ -36,6 +39,13 @@ export function ProjectReport({ project, isManager }: { project: any; isManager:
     t.addText(project.name, { x: 0.5, y: 2, w: 12, h: 1.2, fontSize: 44, bold: true, color: "FFFFFF" });
     t.addText(`${project.client ?? ""} · ${project.quarter}`, { x: 0.5, y: 3.2, w: 12, h: 0.6, fontSize: 22, color: "C9D6E5" });
     t.addText(kind === "final" ? "FINAL REPORT" : "DRAFT", { x: 0.5, y: 6.5, w: 12, h: 0.5, fontSize: 16, color: "F5A623", bold: true });
+
+    // Executive Summary Slide
+    if (metrics?.executive_summary) {
+      const e = pptx.addSlide();
+      e.addText("Executive Summary", { x: 0.5, y: 0.4, w: 12, h: 0.7, fontSize: 28, bold: true, color: "1E3A5F" });
+      e.addText(metrics.executive_summary, { x: 0.5, y: 1.3, w: 12, h: 5.8, fontSize: 16, color: "222222", align: "left" });
+    }
 
     // Per focus area
     for (const a of areas) {
@@ -90,6 +100,24 @@ export function ProjectReport({ project, isManager }: { project: any; isManager:
                 <FileCheck2 className="h-4 w-4 mr-1" /> Finalize & download FINAL
               </Button>
             )}
+            <Button variant="outline" onClick={async () => {
+              toast.loading("Generating secure share link...");
+              const token = Math.random().toString(36).substring(2, 15);
+              const snapshot = { project, areas, obs, metrics };
+              const { error } = await supabase.from("shared_reports").insert({
+                project_id: project.id,
+                token,
+                created_by: user!.id,
+                snapshot
+              });
+              toast.dismiss();
+              if (error) return toast.error(error.message);
+              const url = `${window.location.origin}/share/${token}`;
+              await navigator.clipboard.writeText(url);
+              toast.success("Share link copied to clipboard!");
+            }}>
+              <Share2 className="h-4 w-4 mr-1" /> Create Public Link
+            </Button>
           </div>
         </CardContent>
       </Card>

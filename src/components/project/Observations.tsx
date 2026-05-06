@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { useServerFn } from "@tanstack/react-start";
-import { rewriteObservation } from "@/server/ai.functions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +10,6 @@ import { toast } from "sonner";
 
 export function ProjectObservations({ projectId }: { projectId: string }) {
   const { user } = useAuth();
-  const rewrite = useServerFn(rewriteObservation);
   const [obs, setObs] = useState<any[]>([]);
   const [areas, setAreas] = useState<any[]>([]);
   const [text, setText] = useState("");
@@ -44,8 +41,12 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
   const doRewrite = async (o: any) => {
     setBusy(o.id);
     try {
-      const r = await rewrite({ data: { text: o.accepted_text || o.original_text } });
-      await supabase.from("observations").update({ rewritten_text: r.text }).eq("id", o.id);
+      const { data, error } = await supabase.functions.invoke("ai", {
+        body: { text: o.accepted_text || o.original_text }
+      });
+      if (error) throw new Error(error.message || "Failed to rewrite");
+      
+      await supabase.from("observations").update({ rewritten_text: data.text }).eq("id", o.id);
       await supabase.from("observation_history").insert({
         observation_id: o.id, actor_id: user!.id, action: "ai_rewrite",
         snapshot: { rewritten_text: r.text },
