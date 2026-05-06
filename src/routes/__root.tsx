@@ -38,6 +38,10 @@ export const Route = createRootRoute({
       { property: "og:description", content: "Plan, track, and auto-draft DKC quarterly audit reports." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "DKC Quarterly Report Tracker" },
+      { name: "twitter:description", content: "Plan, track, and auto-draft DKC quarterly audit reports." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/92082ab9-24b6-46a2-8c99-9214fd0ad7ef" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/92082ab9-24b6-46a2-8c99-9214fd0ad7ef" },
     ],
     links: [
       {
