@@ -1,8 +1,6 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/sonner";
-
-import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
   return (
@@ -27,47 +25,9 @@ function NotFoundComponent() {
 }
 
 export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "DKC Quarterly Report Tracker" },
-      { name: "description", content: "Plan, track, and auto-draft DKC quarterly audit reports." },
-      { name: "author", content: "DKC" },
-      { property: "og:title", content: "DKC Quarterly Report Tracker" },
-      { property: "og:description", content: "Plan, track, and auto-draft DKC quarterly audit reports." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "DKC Quarterly Report Tracker" },
-      { name: "twitter:description", content: "Plan, track, and auto-draft DKC quarterly audit reports." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/92082ab9-24b6-46a2-8c99-9214fd0ad7ef" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/92082ab9-24b6-46a2-8c99-9214fd0ad7ef" },
-    ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-    ],
-  }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
 });
-
-function RootShell({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
 
 function RootComponent() {
   return (

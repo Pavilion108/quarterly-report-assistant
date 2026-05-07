@@ -12,7 +12,6 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@cloudflare/vite-plugin": "^1.25.5",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -43,9 +42,8 @@
     "@supabase/supabase-js": "^2.105.3",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.83.0",
-    "@tanstack/react-router": "^1.168.0",
-    "@tanstack/react-start": "^1.167.14",
-    "@tanstack/router-plugin": "^1.167.10",
+    "@tanstack/react-router": "^1.169.2",
+    "@tanstack/router-vite-plugin": "^1.166.50",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -70,11 +68,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@lovable.dev/vite-tanstack-config": "^1.4.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.0.4",
+    "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
@@ -84,6 +81,6 @@
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1"
+    "vite": "^7.3.3"
   }
 }
