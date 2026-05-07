@@ -20,5 +20,17 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-router": ["@tanstack/react-router"],
+          "vendor-supabase": ["@supabase/supabase-js"],
+          "vendor-ui": ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-select", "@radix-ui/react-tabs"],
+          "vendor-charts": ["recharts"],
+          "vendor-pptx": ["pptxgenjs"],
+        },
+      },
+    },
   },
 });

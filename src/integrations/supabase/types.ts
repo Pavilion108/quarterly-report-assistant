@@ -315,6 +315,85 @@ export type Database = {
           },
         ]
       }
+      project_metrics: {
+        Row: {
+          id: string
+          project_id: string
+          revenue: number | null
+          expenses: number | null
+          goals: Json | null
+          kpi_scorecard: Json | null
+          executive_summary: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          revenue?: number | null
+          expenses?: number | null
+          goals?: Json | null
+          kpi_scorecard?: Json | null
+          executive_summary?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          revenue?: number | null
+          expenses?: number | null
+          goals?: Json | null
+          kpi_scorecard?: Json | null
+          executive_summary?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_metrics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      shared_reports: {
+        Row: {
+          id: string
+          project_id: string
+          token: string
+          snapshot: Json
+          view_count: number
+          created_at: string
+          expires_at: string | null
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          token: string
+          snapshot: Json
+          view_count?: number
+          created_at?: string
+          expires_at?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          token?: string
+          snapshot?: Json
+          view_count?: number
+          created_at?: string
+          expires_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -355,6 +434,10 @@ export type Database = {
       is_project_member: {
         Args: { _project_id: string; _user_id: string }
         Returns: boolean
+      }
+      increment_view_count: {
+        Args: { row_id: string }
+        Returns: undefined
       }
     }
     Enums: {

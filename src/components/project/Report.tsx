@@ -107,7 +107,6 @@ export function ProjectReport({ project, isManager }: { project: any; isManager:
               const { error } = await supabase.from("shared_reports").insert({
                 project_id: project.id,
                 token,
-                created_by: user!.id,
                 snapshot
               });
               toast.dismiss();

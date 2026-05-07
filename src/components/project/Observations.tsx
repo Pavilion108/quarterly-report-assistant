@@ -49,7 +49,7 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
       await supabase.from("observations").update({ rewritten_text: data.text }).eq("id", o.id);
       await supabase.from("observation_history").insert({
         observation_id: o.id, actor_id: user!.id, action: "ai_rewrite",
-        snapshot: { rewritten_text: r.text },
+        snapshot: { rewritten_text: data.text },
       });
       load();
     } catch (e: any) { toast.error(e.message); }
