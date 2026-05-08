@@ -394,6 +394,39 @@ export type Database = {
           }
         ]
       }
+      access_requests: {
+        Row: {
+          id: string
+          email: string
+          name: string | null
+          message: string | null
+          status: "pending" | "approved" | "rejected"
+          created_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+        }
+        Insert: {
+          id?: string
+          email: string
+          name?: string | null
+          message?: string | null
+          status?: "pending" | "approved" | "rejected"
+          created_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          name?: string | null
+          message?: string | null
+          status?: "pending" | "approved" | "rejected"
+          created_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -439,9 +472,23 @@ export type Database = {
         Args: { row_id: string }
         Returns: undefined
       }
+      set_user_role: {
+        Args: { target_user_id: string; new_role: Database["public"]["Enums"]["app_role"] }
+        Returns: undefined
+      }
+      admin_user_overview: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          name: string | null
+          email: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          created_at: string
+        }[]
+      }
     }
     Enums: {
-      app_role: "admin" | "manager" | "member"
+      app_role: "admin" | "manager" | "member" | "partner"
     }
     CompositeTypes: {
       [_ in never]: never

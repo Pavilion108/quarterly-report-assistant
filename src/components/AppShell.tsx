@@ -31,7 +31,7 @@ export function AppShell() {
           </Link>
           <nav className="flex items-center gap-1">
             <NavItem to="/dashboard" active={loc.pathname.startsWith("/dashboard") || loc.pathname.startsWith("/projects")} icon={<LayoutDashboard className="h-4 w-4" />}>Projects</NavItem>
-            {isAdmin && <NavItem to="/admin/users" active={loc.pathname.startsWith("/admin/users")} icon={<Users2 className="h-4 w-4" />}>Users</NavItem>}
+            {isAdmin && <NavItem to="/admin/users" active={loc.pathname.startsWith("/admin/users")} icon={<Users2 className="h-4 w-4" />}>God's Eye</NavItem>}
             {isAdmin && <NavItem to="/admin/templates" active={loc.pathname.startsWith("/admin/templates")} icon={<FileStack className="h-4 w-4" />}>Templates</NavItem>}
           </nav>
           <div className="flex items-center gap-4">

@@ -35,6 +35,9 @@ function AuthPage() {
   };
 
   const signUp = async () => {
+    if (!email.endsWith("@dkothary.com")) {
+      return toast.error("Registration is restricted to @dkothary.com email addresses only.");
+    }
     setBusy(true);
     const { error } = await supabase.auth.signUp({
       email, password,
@@ -68,7 +71,7 @@ function AuthPage() {
               <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
               <div><Label>Password</Label><Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
               <Button className="w-full" onClick={signUp} disabled={busy}>Create account</Button>
-              <p className="text-xs text-muted-foreground">First registered user becomes Admin. Others start as Member; an Admin can promote to Manager.</p>
+              <p className="text-xs text-muted-foreground">Only @dkothary.com emails are allowed. First registered user becomes Admin. Others start as Member; an Admin can promote to Manager or Partner.</p>
             </TabsContent>
           </Tabs>
         </CardContent>
