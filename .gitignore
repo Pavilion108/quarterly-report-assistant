@@ -30,7 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
 # Env files - add vars to hosting platform dashboard instead
 .env
 .env.*
+.vercel

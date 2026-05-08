@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
+import { AnimatedButton } from "@/components/vengeance/AnimatedButton";
 import { FileText, Users, Sparkles, Presentation } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -38,7 +39,7 @@ function Landing() {
           deck any time.
         </p>
         <div className="mt-8 flex gap-3">
-          <Link to="/auth"><Button size="lg">Get started</Button></Link>
+          <Link to="/auth"><AnimatedButton className="w-40 text-lg">Get started</AnimatedButton></Link>
         </div>
 
         <div className="mt-20 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
