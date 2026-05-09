@@ -34,3 +34,4 @@ dist-ssr
 .env
 .env.*
 .vercel
+.ai-context.md
