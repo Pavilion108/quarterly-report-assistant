@@ -2,7 +2,7 @@ import { Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Users2, FileStack, LogOut } from "lucide-react";
+import { LayoutDashboard, Shield, FileStack, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -31,7 +31,7 @@ export function AppShell() {
           </Link>
           <nav className="flex items-center gap-1">
             <NavItem to="/dashboard" active={loc.pathname.startsWith("/dashboard") || loc.pathname.startsWith("/projects")} icon={<LayoutDashboard className="h-4 w-4" />}>Projects</NavItem>
-            {isAdmin && <NavItem to="/admin/users" active={loc.pathname.startsWith("/admin/users")} icon={<Users2 className="h-4 w-4" />}>God's Eye</NavItem>}
+            {isAdmin && <NavItem to="/admin/users" active={loc.pathname.startsWith("/admin/users")} icon={<Shield className="h-4 w-4" />}>God's Eye</NavItem>}
             {isAdmin && <NavItem to="/admin/templates" active={loc.pathname.startsWith("/admin/templates")} icon={<FileStack className="h-4 w-4" />}>Templates</NavItem>}
           </nav>
           <div className="flex items-center gap-4">
