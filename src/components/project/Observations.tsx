@@ -81,27 +81,38 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
     setBusy("extract");
     try {
       const prompt = `IGNORE PREVIOUS INSTRUCTIONS. You are an expert CA. Extract the key "Focus Areas" (audit scopes) from the following paragraph. RETURN ONLY A COMMA-SEPARATED LIST of short titles (e.g. Revenue, Internal Controls, Compliance): \n\n${extractText}`;
-      const { data, error } = await supabase.functions.invoke("ai", {
+      const res = await supabase.functions.invoke("ai", {
         body: { text: prompt }
       });
-      if (error) throw new Error(error.message || "Failed to extract");
+      if (res.error) {
+        const msg = typeof res.error === 'object' ? (res.error.message || JSON.stringify(res.error)) : String(res.error);
+        throw new Error(msg || "AI service unavailable");
+      }
+      const responseText = res.data?.text || res.data;
+      if (!responseText) throw new Error("Empty response from AI");
       
-      const newAreas = data.text.split(',').map((s: string) => s.trim()).filter(Boolean);
+      const newAreas = String(responseText).split(',').map((s: string) => s.trim()).filter(Boolean);
       if (newAreas.length === 0) throw new Error("No focus areas found.");
 
+      // Deduplicate against existing areas
+      const existingNames = new Set(areas.map(a => a.name.toLowerCase().trim()));
       let currentOrder = areas.length;
+      let added = 0;
       for (const area of newAreas) {
+        if (existingNames.has(area.toLowerCase().trim())) continue;
+        existingNames.add(area.toLowerCase().trim());
         await supabase.from("focus_areas").insert({
           project_id: projectId,
           name: area,
           display_order: currentOrder++
         });
+        added++;
       }
-      toast.success(`Extracted ${newAreas.length} focus areas!`);
+      toast.success(`Extracted ${added} focus areas!`);
       setExtractText("");
       setShowExtractor(false);
       load();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(e.message || "Failed to extract focus areas"); }
     setBusy(null);
   };
 
@@ -136,7 +147,7 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
                 </Select>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setShowExtractor(!showExtractor)} className="text-xs text-blue-600 h-8 w-full justify-start hover:bg-blue-50">
-                <Plus className="h-3 w-3 mr-1" /> Add Focus Areas from Audit Plan via AI
+                <Plus className="h-3 w-3 mr-1" /> AI Scope Extraction
               </Button>
             </div>
             

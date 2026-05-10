@@ -61,17 +61,23 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
       } catch (err: any) { toast.dismiss(); toast.error(err.message || "Failed to invite"); }
       return;
     }
+    // Robust duplicate check — check both in-memory state AND via fresh query
     const isDuplicate = members.some(m => m.user_id === pickUser);
-    if (isDuplicate) { toast.error("User is already a member."); setPickUser(""); return; }
+    if (isDuplicate) { toast.error("This user is already a member of this engagement."); setPickUser(""); return; }
+    const { data: existing } = await supabase.from("project_members").select("id").eq("project_id", project.id).eq("user_id", pickUser).maybeSingle();
+    if (existing) { toast.error("This user is already a member of this engagement."); setPickUser(""); load(); return; }
     const { error } = await supabase.from("project_members").insert({ project_id: project.id, user_id: pickUser });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error("Failed to add member. They may already be assigned."); return; }
     setPickUser(""); load();
   };
 
   const removeMember = async (id: string) => { await supabase.from("project_members").delete().eq("id", id); load(); };
   const addArea = async () => {
     if (!newArea.trim()) return;
-    await supabase.from("focus_areas").insert({ project_id: project.id, name: newArea, display_order: areas.length });
+    // Deduplication check
+    const exists = areas.some(a => a.name.toLowerCase().trim() === newArea.toLowerCase().trim());
+    if (exists) { toast.error(`"${newArea.trim()}" already exists as a focus area.`); return; }
+    await supabase.from("focus_areas").insert({ project_id: project.id, name: newArea.trim(), display_order: areas.length });
     setNewArea(""); load();
   };
   const removeArea = async (id: string) => { await supabase.from("focus_areas").delete().eq("id", id); load(); };
@@ -79,11 +85,22 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
   const bulkAddAreas = async () => {
     const lines = agreementText.split('\n').map(s => s.trim()).filter(Boolean);
     if (lines.length === 0) return toast.error("No lines found to import.");
-    let order = areas.length;
+    // Deduplicate against existing areas AND within the pasted text itself
+    const existingNames = new Set(areas.map(a => a.name.toLowerCase().trim()));
+    const uniqueLines: string[] = [];
+    let skipped = 0;
     for (const line of lines) {
+      const key = line.toLowerCase().trim();
+      if (existingNames.has(key)) { skipped++; continue; }
+      existingNames.add(key);
+      uniqueLines.push(line);
+    }
+    if (uniqueLines.length === 0) return toast.error("All lines already exist as focus areas.");
+    let order = areas.length;
+    for (const line of uniqueLines) {
       await supabase.from("focus_areas").insert({ project_id: project.id, name: line, display_order: order++ });
     }
-    toast.success(`${lines.length} focus areas imported!`);
+    toast.success(`${uniqueLines.length} scope lines imported!${skipped > 0 ? ` (${skipped} duplicates skipped)` : ''}`);
     setAgreementText("");
     setShowAgreementParser(false);
     load();
@@ -135,9 +152,9 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
           <CardHeader className="flex flex-row items-start justify-between pb-3 border-b border-slate-100">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <BrainCircuit className="h-5 w-5 text-indigo-600" /> Company Intelligence
+                <BrainCircuit className="h-5 w-5 text-indigo-600" /> Client Profile & Risk Context
               </CardTitle>
-              <CardDescription className="mt-1">AI-generated briefing on the client's profile, industry risks, and audit context.</CardDescription>
+              <CardDescription className="mt-1">AI-powered briefing on the client's business profile, industry risks, and audit context.</CardDescription>
             </div>
             {isManager && (
               <Button size="sm" onClick={generateIntelligence} disabled={busyIntelligence} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-sm shrink-0">
@@ -209,7 +226,7 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
 
                 <Button variant="ghost" size="sm" onClick={() => setShowAgreementParser(!showAgreementParser)} className="w-full text-xs text-indigo-600 h-8 hover:bg-indigo-50 justify-start">
                   <ClipboardPaste className="h-3 w-3 mr-1.5" />
-                  Import from Audit Agreement (Bulk)
+                  Paste & Import Scope Lines
                   {showAgreementParser ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
                 </Button>
 

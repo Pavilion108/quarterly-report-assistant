@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { CalendarDays, CheckCircle2, Clock, CircleDot, MessageSquare, Send, ArrowRight, Users, ChevronDown } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock, CircleDot, MessageSquare, Send, ArrowRight, Users, ChevronDown, Pencil, Trash2, Check, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const STATUSES = [
@@ -61,6 +61,10 @@ export function ProjectTracker({ projectId, project }: { projectId: string, proj
   // Inline note state for board
   const [inlineNote, setInlineNote] = useState<Record<string, string>>({});
   const [showNoteFor, setShowNoteFor] = useState<string | null>(null);
+
+  // Edit focus area state
+  const [editingArea, setEditingArea] = useState<string | null>(null);
+  const [editingAreaName, setEditingAreaName] = useState("");
 
   const load = useCallback(async () => {
     const [logsRes, areasRes] = await Promise.all([
@@ -243,12 +247,12 @@ export function ProjectTracker({ projectId, project }: { projectId: string, proj
           ) : (
             <div className="divide-y divide-slate-100">
               {/* Header */}
-              <div className="grid grid-cols-[1fr_160px_120px_100px_40px] gap-2 px-4 py-2 bg-slate-50/70 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <div className="grid grid-cols-[1fr_160px_120px_100px_80px] gap-2 px-4 py-2 bg-slate-50/70 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                 <span>Focus Area</span>
                 <span>Status</span>
                 <span>Updated By</span>
                 <span>When</span>
-                <span></span>
+                <span className="text-right">Actions</span>
               </div>
 
               {boardData.map((item, idx) => {
@@ -263,11 +267,25 @@ export function ProjectTracker({ projectId, project }: { projectId: string, proj
                     transition={{ delay: idx * 0.02 }}
                     className="group"
                   >
-                    <div className="grid grid-cols-[1fr_160px_120px_100px_40px] gap-2 px-4 py-3 items-center hover:bg-slate-50/50 transition-colors">
-                      {/* Focus Area Name */}
+                    <div className="grid grid-cols-[1fr_160px_120px_100px_80px] gap-2 px-4 py-3 items-center hover:bg-slate-50/50 transition-colors">
+                      {/* Focus Area Name — editable */}
                       <div className="flex items-center gap-2 min-w-0">
                         <div className={`w-2 h-2 rounded-full ${meta.dot} shrink-0`} />
-                        <span className="text-sm font-medium text-slate-800 truncate">{item.area.name}</span>
+                        {editingArea === item.area.id ? (
+                          <div className="flex items-center gap-1 flex-1">
+                            <Input className="h-7 text-sm flex-1" value={editingAreaName} onChange={(e) => setEditingAreaName(e.target.value)} onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                supabase.from("focus_areas").update({ name: editingAreaName.trim() }).eq("id", item.area.id).then(() => { setEditingArea(null); load(); });
+                              }
+                            }} autoFocus />
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-emerald-600" onClick={() => {
+                              supabase.from("focus_areas").update({ name: editingAreaName.trim() }).eq("id", item.area.id).then(() => { setEditingArea(null); load(); toast.success("Updated"); });
+                            }}><Check className="h-3 w-3" /></Button>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-slate-400" onClick={() => setEditingArea(null)}><X className="h-3 w-3" /></Button>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-medium text-slate-800 truncate">{item.area.name}</span>
+                        )}
                       </div>
 
                       {/* Status Badge — Clickable */}
@@ -286,10 +304,23 @@ export function ProjectTracker({ projectId, project }: { projectId: string, proj
                       {/* When */}
                       <span className="text-[11px] text-slate-400">{item.lastTime ? timeAgo(item.lastTime) : "—"}</span>
 
-                      {/* Note Toggle */}
-                      <button onClick={() => setShowNoteFor(showNoteFor === item.area.id ? null : item.area.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-700">
-                        <MessageSquare className="h-3.5 w-3.5" />
-                      </button>
+                      {/* Actions: Note, Edit, Delete */}
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={() => setShowNoteFor(showNoteFor === item.area.id ? null : item.area.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-700 p-1">
+                          <MessageSquare className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => { setEditingArea(item.area.id); setEditingAreaName(item.area.name); }} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-blue-600 p-1">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button onClick={async () => {
+                          if (!confirm(`Delete "${item.area.name}"?`)) return;
+                          await supabase.from("focus_areas").delete().eq("id", item.area.id);
+                          toast.success("Focus area removed");
+                          load();
+                        }} className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500 p-1">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Inline Note */}
