@@ -51,6 +51,8 @@ function GodsEye() {
   const [observations, setObservations] = useState<any[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("member");
 
   const loadAll = useCallback(async () => {
     const [uRes, rRes, pRes, sRes, oRes] = await Promise.all([
@@ -90,6 +92,27 @@ function GodsEye() {
     }
     toast.success("Role updated");
     await loadAll();
+    setBusy(null);
+  };
+
+  const inviteUser = async () => {
+    if (!inviteEmail || !inviteEmail.endsWith("@dkothary.com")) {
+      return toast.error("Please enter a valid @dkothary.com email");
+    }
+    setBusy("invite");
+    toast.loading("Sending invitation email...");
+    try {
+      const { data, error } = await supabase.functions.invoke("admin_invite", {
+        body: { email: inviteEmail, role: inviteRole }
+      });
+      toast.dismiss();
+      if (error) throw error;
+      toast.success(`Invitation sent to ${inviteEmail}`);
+      setInviteEmail("");
+    } catch (e: any) {
+      toast.dismiss();
+      toast.error(e.message || "Failed to invite user");
+    }
     setBusy(null);
   };
 
@@ -180,7 +203,40 @@ function GodsEye() {
         </TabsList>
 
         {/* ── USERS TAB ── */}
-        <TabsContent value="users" className="mt-4">
+        <TabsContent value="users" className="mt-4 space-y-4">
+          <Card className="bg-white/[0.03] border-white/[0.08]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white text-base flex items-center gap-2"><UserCog className="h-4 w-4 text-emerald-400" /> Invite New Member</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input 
+                  className="bg-white/[0.04] border-white/[0.1] text-slate-200 placeholder:text-slate-500" 
+                  placeholder="new.user@dkothary.com" 
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                />
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger className="sm:w-[150px] bg-white/[0.04] border-white/[0.1] text-slate-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="partner">Partner</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={inviteUser} disabled={busy === "invite"} className="bg-white/10 hover:bg-white/20 text-white shrink-0">
+                  {busy === "invite" ? "Sending..." : "Send Invite"}
+                </Button>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-2">
+                Sends a secure welcome email with an invite link. The user's role will be automatically assigned when they join.
+              </p>
+            </CardContent>
+          </Card>
+
           <Card className="bg-white/[0.03] border-white/[0.08]">
             <CardHeader className="pb-3">
               <CardTitle className="text-white text-base flex items-center gap-2"><UserCog className="h-4 w-4 text-blue-400" /> All Users · Role Management</CardTitle>
