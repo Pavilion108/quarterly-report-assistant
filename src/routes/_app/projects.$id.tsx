@@ -41,12 +41,12 @@ function ProjectPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="tracker">Daily Tracker</TabsTrigger>
+          <TabsTrigger value="tracker">Scope Board</TabsTrigger>
           <TabsTrigger value="observations">Observations</TabsTrigger>
           <TabsTrigger value="report">Report</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-6"><ProjectOverview project={project} isManager={isManager} onChange={setProject} /></TabsContent>
-        <TabsContent value="tracker" className="mt-6"><ProjectTracker projectId={id} /></TabsContent>
+        <TabsContent value="tracker" className="mt-6"><ProjectTracker projectId={id} project={project} /></TabsContent>
         <TabsContent value="observations" className="mt-6"><ProjectObservations projectId={id} /></TabsContent>
         <TabsContent value="report" className="mt-6"><ProjectReport project={project} isManager={isManager} /></TabsContent>
       </Tabs>
