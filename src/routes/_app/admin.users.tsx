@@ -27,11 +27,11 @@ const ROLE_COLORS: Record<string, string> = {
 /* ── Stat Card ── */
 function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: string | number; color: string }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm p-4">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-slate-500 uppercase tracking-wider font-medium">{label}</p>
-          <p className="text-2xl font-bold text-white mt-1">{value}</p>
+          <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
         </div>
         <div className={`w-10 h-10 rounded-lg grid place-items-center ${color}`}>
           <Icon className="h-5 w-5" />
@@ -53,6 +53,8 @@ function GodsEye() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
+  const [invitePassword, setInvitePassword] = useState("Dkc@1234");
+  const [createdUser, setCreatedUser] = useState<{ email: string, pass: string } | null>(null);
 
   const loadAll = useCallback(async () => {
     const [uRes, rRes, pRes, sRes, oRes] = await Promise.all([
@@ -99,19 +101,26 @@ function GodsEye() {
     if (!inviteEmail || !inviteEmail.endsWith("@dkothary.com")) {
       return toast.error("Please enter a valid @dkothary.com email");
     }
+    if (invitePassword.length < 6) return toast.error("Password must be at least 6 characters");
+    
     setBusy("invite");
-    toast.loading("Sending invitation email...");
+    toast.loading("Creating user account...");
     try {
       const { data, error } = await supabase.functions.invoke("admin_invite", {
-        body: { email: inviteEmail, role: inviteRole }
+        body: { email: inviteEmail, role: inviteRole, password: invitePassword }
       });
       toast.dismiss();
       if (error) throw error;
-      toast.success(`Invitation sent to ${inviteEmail}`);
+      
+      toast.success(`User ${inviteEmail} created successfully!`);
+      setCreatedUser({ email: inviteEmail, pass: invitePassword });
       setInviteEmail("");
+      
+      // We automatically reload so the new user appears in the list
+      await loadAll();
     } catch (e: any) {
       toast.dismiss();
-      toast.error(e.message || "Failed to invite user");
+      toast.error(e.message || "Failed to create user");
     }
     setBusy(null);
   };
@@ -156,21 +165,21 @@ function GodsEye() {
   };
 
   return (
-    <div className="space-y-6 -mx-6 -mt-8 px-6 pt-6 pb-8 min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="space-y-6 -mx-6 -mt-8 px-6 pt-6 pb-8 min-h-screen bg-slate-50">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 grid place-items-center shadow-lg shadow-red-500/20">
+          <div className="w-10 h-10 rounded-xl bg-slate-900 grid place-items-center shadow-md">
             <Shield className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">God's Eye</h1>
-            <p className="text-xs text-slate-500 flex items-center gap-1"><Radio className="h-3 w-3 text-green-400 animate-pulse" /> System Command Center</p>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">God's Eye</h1>
+            <p className="text-xs text-slate-500 flex items-center gap-1"><Radio className="h-3 w-3 text-emerald-500 animate-pulse" /> System Command Center</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-slate-600 font-mono">LAST SYNC {lastRefresh.toLocaleTimeString()}</span>
-          <Button size="sm" variant="outline" className="border-white/10 text-slate-400 hover:text-white hover:bg-white/5 h-8" onClick={loadAll}>
+          <span className="text-[10px] text-slate-400 font-mono">LAST SYNC {lastRefresh.toLocaleTimeString()}</span>
+          <Button size="sm" variant="outline" className="border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 h-8 bg-white" onClick={loadAll}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
           </Button>
         </div>
@@ -178,46 +187,52 @@ function GodsEye() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={Users} label="Total Users" value={users.length} color="bg-blue-500/20 text-blue-400" />
-        <StatCard icon={FolderKanban} label="Projects" value={projects.length} color="bg-emerald-500/20 text-emerald-400" />
-        <StatCard icon={ShieldAlert} label="Pending Requests" value={pendingCount} color="bg-amber-500/20 text-amber-400" />
-        <StatCard icon={Database} label="Observations" value={totalObs} color="bg-violet-500/20 text-violet-400" />
+        <StatCard icon={Users} label="Total Users" value={users.length} color="bg-blue-50 text-blue-600" />
+        <StatCard icon={FolderKanban} label="Projects" value={projects.length} color="bg-emerald-50 text-emerald-600" />
+        <StatCard icon={ShieldAlert} label="Pending Requests" value={pendingCount} color="bg-amber-50 text-amber-600" />
+        <StatCard icon={Database} label="Observations" value={totalObs} color="bg-violet-50 text-violet-600" />
       </div>
 
       {/* Main Tabs */}
       <Tabs defaultValue="users">
-        <TabsList className="bg-white/[0.04] border border-white/[0.08] rounded-lg h-10 p-1">
-          <TabsTrigger value="users" className="text-slate-400 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-md text-xs gap-1.5">
+        <TabsList className="bg-white border border-slate-200 shadow-sm rounded-lg h-10 p-1">
+          <TabsTrigger value="users" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5">
             <UserCog className="h-3.5 w-3.5" /> Users
           </TabsTrigger>
-          <TabsTrigger value="requests" className="text-slate-400 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-md text-xs gap-1.5 relative">
+          <TabsTrigger value="requests" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5 relative">
             <ShieldAlert className="h-3.5 w-3.5" /> Requests
             {pendingCount > 0 && <span className="ml-1 bg-red-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">{pendingCount}</span>}
           </TabsTrigger>
-          <TabsTrigger value="intel" className="text-slate-400 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-md text-xs gap-1.5">
+          <TabsTrigger value="intel" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5">
             <Activity className="h-3.5 w-3.5" /> Intel Feed
           </TabsTrigger>
-          <TabsTrigger value="controls" className="text-slate-400 data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-md text-xs gap-1.5">
+          <TabsTrigger value="controls" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5">
             <Settings2 className="h-3.5 w-3.5" /> Controls
           </TabsTrigger>
         </TabsList>
 
         {/* ── USERS TAB ── */}
         <TabsContent value="users" className="mt-4 space-y-4">
-          <Card className="bg-white/[0.03] border-white/[0.08]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base flex items-center gap-2"><UserCog className="h-4 w-4 text-emerald-400" /> Invite New Member</CardTitle>
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-slate-900 text-base flex items-center gap-2"><UserCog className="h-4 w-4 text-slate-700" /> Create New User Account</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <div className="flex flex-col sm:flex-row gap-3">
                 <Input 
-                  className="bg-white/[0.04] border-white/[0.1] text-slate-200 placeholder:text-slate-500" 
+                  className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400" 
                   placeholder="new.user@dkothary.com" 
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                 />
+                <Input 
+                  className="bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 sm:w-[150px] font-mono text-sm" 
+                  placeholder="Password" 
+                  value={invitePassword}
+                  onChange={(e) => setInvitePassword(e.target.value)}
+                />
                 <Select value={inviteRole} onValueChange={setInviteRole}>
-                  <SelectTrigger className="sm:w-[150px] bg-white/[0.04] border-white/[0.1] text-slate-300">
+                  <SelectTrigger className="sm:w-[130px] bg-white border-slate-200 text-slate-900">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -227,33 +242,48 @@ function GodsEye() {
                     <SelectItem value="partner">Partner</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button onClick={inviteUser} disabled={busy === "invite"} className="bg-white/10 hover:bg-white/20 text-white shrink-0">
-                  {busy === "invite" ? "Sending..." : "Send Invite"}
+                <Button onClick={inviteUser} disabled={busy === "invite"} className="bg-slate-900 hover:bg-slate-800 text-white shrink-0">
+                  {busy === "invite" ? "Creating..." : "Create User"}
                 </Button>
               </div>
-              <p className="text-[10px] text-slate-500 mt-2">
-                Sends a secure welcome email with an invite link. The user's role will be automatically assigned when they join.
-              </p>
+              
+              {createdUser ? (
+                <div className="mt-4 p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-800">Account successfully created!</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">They can log in immediately with the password you set.</p>
+                  </div>
+                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 h-8" asChild>
+                    <a href={`mailto:${createdUser.email}?subject=Welcome to DKC Tracking System&body=Hello,%0D%0A%0D%0AYour account has been created.%0D%0A%0D%0ALogin ID: ${createdUser.email}%0D%0APassword: ${createdUser.pass}%0D%0A%0D%0APlease log in at https://dkcreportassist.vercel.app/`}>
+                      Email Credentials
+                    </a>
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500 mt-2">
+                  The account will be instantly active. You can email the credentials directly after creation.
+                </p>
+              )}
             </CardContent>
           </Card>
 
-          <Card className="bg-white/[0.03] border-white/[0.08]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base flex items-center gap-2"><UserCog className="h-4 w-4 text-blue-400" /> All Users · Role Management</CardTitle>
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-slate-900 text-base flex items-center gap-2"><Users className="h-4 w-4 text-slate-700" /> All Users & Role Management</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1.5">
+            <CardContent className="space-y-1.5 pt-4">
               {users.length === 0 && <p className="text-sm text-slate-500 py-6 text-center">No users found.</p>}
               {users.map((u) => (
-                <div key={u.id} className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3 gap-4 hover:bg-white/[0.04] transition-colors">
+                <div key={u.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 gap-4 hover:bg-slate-100 transition-colors">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white truncate">{u.name || "—"}</span>
-                      {u.role && <Badge variant="outline" className={`text-[10px] ${ROLE_COLORS[u.role] ?? ""}`}>{u.role}</Badge>}
+                      <span className="text-sm font-medium text-slate-900 truncate">{u.name || "—"}</span>
+                      {u.role && <Badge variant="outline" className={`text-[10px] uppercase font-bold tracking-wider ${ROLE_COLORS[u.role] ?? "text-slate-600"}`}>{u.role}</Badge>}
                     </div>
                     <div className="text-xs text-slate-500 truncate font-mono">{u.email}</div>
                   </div>
                   <Select value={u.role ?? "member"} onValueChange={(v) => setRole(u.id, v)} disabled={busy === u.id}>
-                    <SelectTrigger className="w-32 shrink-0 bg-white/[0.04] border-white/[0.1] text-slate-300 text-xs h-8"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-32 shrink-0 bg-white border-slate-200 text-slate-700 text-xs h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>

@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, role } = await req.json()
+    const { email, role, password } = await req.json()
     
     // Create a Supabase client with the Auth context of the logged in user.
     const supabaseClient = createClient(
@@ -30,28 +30,42 @@ Deno.serve(async (req) => {
       throw new Error("Only admins or managers can invite new users.")
     }
 
-    // Now initialize the Admin client using the Service Role Key to bypass RLS and perform admin actions
+    // Now initialize the Admin client using the Service Role Key
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Send the invite email
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { name: email.split('@')[0] }
+    // Direct User Creation bypasses the email requirement and makes them active immediately
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+      user_metadata: { name: email.split('@')[0] }
     })
     
-    if (inviteError) throw inviteError
+    if (inviteError) {
+      // If user already exists, just return success so we can upsert their role
+      if (inviteError.status !== 422 && !inviteError.message.includes('already exists')) {
+        throw inviteError
+      }
+    }
+
+    // Get the user ID (either newly created or existing)
+    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
+    const targetUser = existingUser.users.find(u => u.email === email)
+    
+    if (!targetUser) throw new Error("Failed to resolve user.")
 
     // Pre-assign their role so it's ready when they sign in
-    if (inviteData?.user?.id && role) {
+    if (role) {
       await supabaseAdmin.from('user_roles').upsert({
-        user_id: inviteData.user.id,
+        user_id: targetUser.id,
         role: role
       })
     }
 
-    return new Response(JSON.stringify({ success: true, user: inviteData.user }), {
+    return new Response(JSON.stringify({ success: true, user: targetUser }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
