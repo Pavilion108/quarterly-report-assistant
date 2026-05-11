@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Upload, FileText, CheckCircle2, Circle, Sparkles, Globe, BrainCircuit, RefreshCw, ClipboardPaste, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Upload, FileText, CheckCircle2, Circle, Sparkles, Globe, BrainCircuit, RefreshCw, ClipboardPaste, ExternalLink, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function ProjectOverview({ project, isManager, onChange }: { project: any; isManager: boolean; onChange: (p: any) => void }) {
@@ -81,6 +81,13 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
     setNewArea(""); load();
   };
   const removeArea = async (id: string) => { await supabase.from("focus_areas").delete().eq("id", id); load(); };
+  
+  const removeAllAreas = async () => {
+    if (!confirm("Are you sure you want to remove ALL focus areas from this project? This cannot be undone.")) return;
+    await supabase.from("focus_areas").delete().eq("project_id", project.id);
+    toast.success("All focus areas removed");
+    load();
+  };
 
   const bulkAddAreas = async () => {
     const lines = agreementText.split('\n').map(s => s.trim()).filter(Boolean);
@@ -198,8 +205,15 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
         <Card className="bg-white border-slate-200 shadow-sm">
           <CardHeader className="pb-3 border-b border-slate-100">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Audit Scope — Focus Areas</CardTitle>
-              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{areas.length} items</span>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base">Audit Scope — Focus Areas</CardTitle>
+                <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{areas.length} items</span>
+              </div>
+              {isManager && areas.length > 0 && (
+                <Button size="sm" variant="ghost" onClick={removeAllAreas} className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2">
+                  <Trash2 className="h-3 w-3 mr-1" /> Remove All
+                </Button>
+              )}
             </div>
             <CardDescription>These scope items appear as selectable statuses in the Scope Board.</CardDescription>
           </CardHeader>

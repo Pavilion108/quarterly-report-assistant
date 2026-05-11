@@ -7,6 +7,7 @@ import { ProjectOverview } from "@/components/project/Overview";
 import { ProjectTracker } from "@/components/project/Tracker";
 import { ProjectObservations } from "@/components/project/Observations";
 import { ProjectReport } from "@/components/project/Report";
+import { ProjectUdin } from "@/components/project/Udin";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,11 +108,13 @@ function ProjectPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tracker">Scope Board</TabsTrigger>
           <TabsTrigger value="observations">Observations</TabsTrigger>
+          <TabsTrigger value="udin">UDIN & Files</TabsTrigger>
           <TabsTrigger value="report">Report</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-6"><ProjectOverview project={project} isManager={isManager} onChange={setProject} /></TabsContent>
         <TabsContent value="tracker" className="mt-6"><ProjectTracker projectId={id} project={project} /></TabsContent>
         <TabsContent value="observations" className="mt-6"><ProjectObservations projectId={id} /></TabsContent>
+        <TabsContent value="udin" className="mt-6"><ProjectUdin project={project} isManager={isManager} /></TabsContent>
         <TabsContent value="report" className="mt-6"><ProjectReport project={project} isManager={isManager} /></TabsContent>
       </Tabs>
     </div>
