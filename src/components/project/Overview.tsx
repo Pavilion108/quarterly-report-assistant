@@ -159,14 +159,14 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
           <CardHeader className="flex flex-row items-start justify-between pb-3 border-b border-slate-100">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <BrainCircuit className="h-5 w-5 text-indigo-600" /> Client Profile & Risk Context
+                <BrainCircuit className="h-5 w-5 text-indigo-600" /> Company Brief
               </CardTitle>
               <CardDescription className="mt-1">AI-powered briefing on the client's business profile, industry risks, and audit context.</CardDescription>
             </div>
             {isManager && (
               <Button size="sm" onClick={generateIntelligence} disabled={busyIntelligence} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-sm shrink-0">
                 {busyIntelligence ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                {metrics?.executive_summary ? "Refresh Intel" : "Generate Intel"}
+                {metrics?.executive_summary ? "Refresh Brief" : "Generate Brief"}
               </Button>
             )}
           </CardHeader>
@@ -189,13 +189,17 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
             {/* Intelligence Display — Read-Only */}
             {metrics?.executive_summary ? (
               <div className="bg-gradient-to-br from-slate-50 to-indigo-50/30 rounded-lg p-4 border border-slate-100 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap max-h-[300px] overflow-auto">
-                {metrics.executive_summary}
+                {metrics.executive_summary
+                  .replace(/^\*\*[^*]+\*\*\s*\n?/m, "")
+                  .replace(/^#+\s*.+\n?/m, "")
+                  .replace(/^Engagement Intelligence Briefing[:\s\S]{0,80}\n?/m, "")
+                  .trimStart()}
               </div>
             ) : (
               <div className="text-center py-10 text-slate-400 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
                 <BrainCircuit className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No intelligence generated yet.</p>
-                <p className="text-xs mt-1">Add a website above and click "Generate Intel" to get started.</p>
+                <p className="text-sm">No brief generated yet.</p>
+                <p className="text-xs mt-1">Add a website above and click "Generate Brief" to get started.</p>
               </div>
             )}
           </CardContent>
