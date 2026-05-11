@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import Anthropic from "npm:@anthropic-ai/sdk"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,18 +13,39 @@ Deno.serve(async (req) => {
   try {
     const { text } = await req.json()
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!apiKey) throw new Error('AI not configured')
+    if (!apiKey) throw new Error('AI not configured — API key missing')
 
-    const anthropic = new Anthropic({ apiKey })
-
-    const msg = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20240620",
-      max_tokens: 1024,
-      system: "You are an internal auditor at DKC. Rewrite the user's observation point in a soft, constructive, professional internal-auditor tone suitable for a quarterly report. Be factual, non-accusatory, concise (1-3 sentences). Return only the rewritten point, no preamble.",
-      messages: [{ role: "user", content: text }]
+    // NVIDIA NIM API (OpenAI-compatible endpoint)
+    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'meta/llama-3.1-70b-instruct',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert CA (Chartered Accountant) and business analyst at DKC & Associates. Provide concise, professional, factual responses suitable for audit engagements. Return only the requested content with no preamble or meta-commentary.'
+          },
+          {
+            role: 'user',
+            content: text
+          }
+        ],
+        temperature: 0.4,
+        max_tokens: 1024,
+      })
     })
 
-    const result = msg.content[0]?.text ?? ""
+    if (!response.ok) {
+      const errText = await response.text()
+      throw new Error(`AI API error (${response.status}): ${errText}`)
+    }
+
+    const data = await response.json()
+    const result = data.choices?.[0]?.message?.content ?? ''
 
     return new Response(JSON.stringify({ text: result }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

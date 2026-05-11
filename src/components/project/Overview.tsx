@@ -141,7 +141,7 @@ export function ProjectOverview({ project, isManager, onChange }: { project: any
   const generateIntelligence = async () => {
     setBusyIntelligence(true);
     try {
-      const prompt = `IGNORE PREVIOUS INSTRUCTIONS. You are an expert business analyst and auditor. Based on the client name "${project.client || project.name}"${project.website ? ` and their website URL ${project.website}` : ''}, provide a concise 2-paragraph "Engagement Intelligence" briefing. Cover likely industry risks, primary audit focuses, and a general company overview. RETURN ONLY THE BRIEFING TEXT.`;
+      const prompt = `You are an expert Chartered Accountant and business analyst at DKC & Associates. Based on the client "${project.client || project.name}"${project.website ? ` and their website ${project.website}` : ''}, write a concise 2-paragraph audit engagement briefing covering: (1) business overview and industry sector, (2) key audit risk areas and focus points relevant to a CA firm. Write in a professional, factual tone. DO NOT include any title, heading, label, or prefix at the start. Begin directly with the first sentence of the briefing content.`;
       const { data, error } = await supabase.functions.invoke("ai", { body: { text: prompt } });
       if (error) throw new Error(error.message || "Failed to generate");
       updateMetrics({ executive_summary: data.text });
