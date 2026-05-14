@@ -36,11 +36,11 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Direct User Creation bypasses the email requirement and makes them active immediately
+    // Direct User Creation with email_confirm: false sends the Supabase Confirm Email
     const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
-      email_confirm: true,
+      email_confirm: false,
       user_metadata: { name: email.split('@')[0] }
     })
     

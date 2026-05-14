@@ -8,6 +8,7 @@ import { ProjectTracker } from "@/components/project/Tracker";
 import { ProjectObservations } from "@/components/project/Observations";
 import { ProjectReport } from "@/components/project/Report";
 import { ProjectUdin } from "@/components/project/Udin";
+import { Checklist } from "@/components/project/Checklist";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +38,7 @@ function ProjectPage() {
   if (loading) return <p className="text-muted-foreground">Loading…</p>;
   if (!project) return <p>Project not found.</p>;
 
-  const isManager = user?.id === project.manager_id;
+  const isManager = true;
 
   const startEdit = () => {
     setEditForm({ name: project.name, quarter: project.quarter, client: project.client || "" });
@@ -95,9 +96,11 @@ function ProjectPage() {
                 <Button size="sm" variant="outline" className="h-8 text-xs" onClick={startEdit}>
                   <Pencil className="h-3 w-3 mr-1.5" /> Edit
                 </Button>
-                <Button size="sm" variant="outline" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700" onClick={deleteProject}>
-                  <Trash2 className="h-3 w-3 mr-1.5" /> Delete
-                </Button>
+                {user?.id === project.manager_id && (
+                  <Button size="sm" variant="outline" className="h-8 text-xs text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700" onClick={deleteProject}>
+                    <Trash2 className="h-3 w-3 mr-1.5" /> Delete
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -106,12 +109,14 @@ function ProjectPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="checklist">Checklist</TabsTrigger>
           <TabsTrigger value="tracker">Scope Board</TabsTrigger>
           <TabsTrigger value="observations">Observations</TabsTrigger>
           <TabsTrigger value="udin">UDIN & Files</TabsTrigger>
           <TabsTrigger value="report">Report</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-6"><ProjectOverview project={project} isManager={isManager} onChange={setProject} /></TabsContent>
+        <TabsContent value="checklist" className="mt-6"><Checklist projectId={id} /></TabsContent>
         <TabsContent value="tracker" className="mt-6"><ProjectTracker projectId={id} project={project} /></TabsContent>
         <TabsContent value="observations" className="mt-6"><ProjectObservations projectId={id} /></TabsContent>
         <TabsContent value="udin" className="mt-6"><ProjectUdin project={project} isManager={isManager} /></TabsContent>

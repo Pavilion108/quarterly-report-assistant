@@ -2,7 +2,7 @@ import { Link, Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Shield, FileStack, LogOut } from "lucide-react";
+import { LayoutDashboard, Shield, FileStack, LogOut, Clock } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -12,7 +12,14 @@ export function AppShell() {
   const loc = useLocation();
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/auth" });
+    if (!loading && !user) {
+      navigate({ to: "/auth" });
+    } else if (user) {
+      // Update last seen
+      import("@/integrations/supabase/client").then(({ supabase }) => {
+        supabase.from("profiles").update({ last_seen: new Date().toISOString() }).eq("id", user.id).then();
+      });
+    }
   }, [user, loading, navigate]);
 
   if (loading || !user) {
@@ -31,8 +38,9 @@ export function AppShell() {
           </Link>
           <nav className="flex items-center gap-1">
             <NavItem to="/dashboard" active={loc.pathname.startsWith("/dashboard") || loc.pathname.startsWith("/projects")} icon={<LayoutDashboard className="h-4 w-4" />}>Projects</NavItem>
-            {isAdmin && <NavItem to="/admin/users" active={loc.pathname.startsWith("/admin/users")} icon={<Shield className="h-4 w-4" />}>God's Eye</NavItem>}
-            {isAdmin && <NavItem to="/admin/templates" active={loc.pathname.startsWith("/admin/templates")} icon={<FileStack className="h-4 w-4" />}>Templates</NavItem>}
+            <NavItem to="/timesheet" active={loc.pathname.startsWith("/timesheet")} icon={<Clock className="h-4 w-4" />}>Timesheet</NavItem>
+            {(isAdmin || roles.includes("partner")) && <NavItem to="/admin/users" active={loc.pathname.startsWith("/admin/users")} icon={<Shield className="h-4 w-4" />}>{isAdmin ? "God's Eye" : "Command Center"}</NavItem>}
+            <NavItem to="/admin/templates" active={loc.pathname.startsWith("/admin/templates")} icon={<FileStack className="h-4 w-4" />}>Templates</NavItem>
           </nav>
           <div className="flex items-center gap-4">
             <span className="text-xs text-muted-foreground hidden sm:inline">

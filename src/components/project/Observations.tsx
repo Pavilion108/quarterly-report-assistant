@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Check, Wand2, Plus, RefreshCw, FileText } from "lucide-react";
+import { Sparkles, Check, Wand2, Plus, RefreshCw, FileText, Trash2, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -20,6 +20,10 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
   // New state for Focus Area Extractor
   const [showExtractor, setShowExtractor] = useState(false);
   const [extractText, setExtractText] = useState("");
+
+  // State for editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   const load = async () => {
     const [o, a] = await Promise.all([
@@ -41,6 +45,39 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
     });
     if (error) return toast.error(error.message);
     setText(""); load();
+    toast.success("Observation saved");
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this observation?")) return;
+    const { error } = await supabase.from("observations").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Observation deleted");
+    load();
+  };
+
+  const startEdit = (o: any) => {
+    setEditingId(o.id);
+    setEditText(o.accepted_text || o.original_text);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editText.trim()) return;
+    const { error } = await supabase.from("observations").update({
+      accepted_text: editText,
+      // Also update history if needed
+    }).eq("id", editingId);
+    
+    if (error) return toast.error(error.message);
+    
+    await supabase.from("observation_history").insert({
+      observation_id: editingId, actor_id: user!.id, action: "manual_edit",
+      snapshot: { accepted_text: editText },
+    });
+
+    setEditingId(null);
+    toast.success("Observation updated");
+    load();
   };
 
   const doRewrite = async (o: any) => {
@@ -94,7 +131,6 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
       const newAreas = String(responseText).split(',').map((s: string) => s.trim()).filter(Boolean);
       if (newAreas.length === 0) throw new Error("No focus areas found.");
 
-      // Deduplicate against existing areas
       const existingNames = new Set(areas.map(a => a.name.toLowerCase().trim()));
       let currentOrder = areas.length;
       let added = 0;
@@ -213,14 +249,43 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
                   </span>
                   <span className="text-xs text-slate-500">{new Date(o.created_at).toLocaleDateString()}</span>
                 </div>
-                <span className="text-xs font-medium text-slate-900">{o.profiles?.name || o.profiles?.email}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium text-slate-900">{o.profiles?.name || o.profiles?.email}</span>
+                  <div className="flex items-center gap-1">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-blue-600" onClick={() => startEdit(o)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-red-500" onClick={() => remove(o.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
               </div>
               
-              <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
-                {o.accepted_text || o.original_text}
-              </div>
+              {editingId === o.id ? (
+                <div className="space-y-3">
+                  <Textarea 
+                    value={editText} 
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="text-sm min-h-[120px]"
+                    autoFocus
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-8">
+                      <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                    </Button>
+                    <Button size="sm" onClick={saveEdit} className="h-8 bg-emerald-600 hover:bg-emerald-700">
+                      <Check className="h-3.5 w-3.5 mr-1" /> Update Observation
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
+                  {o.accepted_text || o.original_text}
+                </div>
+              )}
               
-              {o.rewritten_text && o.rewritten_text !== o.accepted_text && (
+              {!editingId && o.rewritten_text && o.rewritten_text !== o.accepted_text && (
                 <div className="mt-4 rounded-lg border border-indigo-100 bg-indigo-50/50 p-4">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-bold text-indigo-700 flex items-center gap-1.5 uppercase tracking-wider">
@@ -236,7 +301,7 @@ export function ProjectObservations({ projectId }: { projectId: string }) {
                 </div>
               )}
               
-              {(!o.rewritten_text || o.rewritten_text === o.accepted_text) && (
+              {!editingId && (!o.rewritten_text || o.rewritten_text === o.accepted_text) && (
                 <div className="flex justify-end mt-4 pt-3 border-t border-slate-100">
                   <Button size="sm" variant="outline" onClick={() => doRewrite(o)} disabled={busy === o.id} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 h-8">
                     {busy === o.id ? <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-1.5" />}

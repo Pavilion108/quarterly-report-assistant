@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareTokenRouteImport } from './routes/share.$token'
+import { Route as AppTimesheetRouteImport } from './routes/_app/timesheet'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppCompareRouteImport } from './routes/_app/compare'
 import { Route as AppProjectsNewRouteImport } from './routes/_app/projects.new'
@@ -38,6 +39,11 @@ const ShareTokenRoute = ShareTokenRouteImport.update({
   id: '/share/$token',
   path: '/share/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppTimesheetRoute = AppTimesheetRouteImport.update({
+  id: '/timesheet',
+  path: '/timesheet',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/compare': typeof AppCompareRoute
   '/dashboard': typeof AppDashboardRoute
+  '/timesheet': typeof AppTimesheetRoute
   '/share/$token': typeof ShareTokenRoute
   '/admin/templates': typeof AppAdminTemplatesRoute
   '/admin/users': typeof AppAdminUsersRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/compare': typeof AppCompareRoute
   '/dashboard': typeof AppDashboardRoute
+  '/timesheet': typeof AppTimesheetRoute
   '/share/$token': typeof ShareTokenRoute
   '/admin/templates': typeof AppAdminTemplatesRoute
   '/admin/users': typeof AppAdminUsersRoute
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_app/compare': typeof AppCompareRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/timesheet': typeof AppTimesheetRoute
   '/share/$token': typeof ShareTokenRoute
   '/_app/admin/templates': typeof AppAdminTemplatesRoute
   '/_app/admin/users': typeof AppAdminUsersRoute
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/compare'
     | '/dashboard'
+    | '/timesheet'
     | '/share/$token'
     | '/admin/templates'
     | '/admin/users'
@@ -123,6 +133,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/compare'
     | '/dashboard'
+    | '/timesheet'
     | '/share/$token'
     | '/admin/templates'
     | '/admin/users'
@@ -135,6 +146,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_app/compare'
     | '/_app/dashboard'
+    | '/_app/timesheet'
     | '/share/$token'
     | '/_app/admin/templates'
     | '/_app/admin/users'
@@ -178,6 +190,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/share/$token'
       preLoaderRoute: typeof ShareTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/timesheet': {
+      id: '/_app/timesheet'
+      path: '/timesheet'
+      fullPath: '/timesheet'
+      preLoaderRoute: typeof AppTimesheetRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
       id: '/_app/dashboard'
@@ -227,6 +246,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppCompareRoute: typeof AppCompareRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppTimesheetRoute: typeof AppTimesheetRoute
   AppAdminTemplatesRoute: typeof AppAdminTemplatesRoute
   AppAdminUsersRoute: typeof AppAdminUsersRoute
   AppProjectsIdRoute: typeof AppProjectsIdRoute
@@ -236,6 +256,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppCompareRoute: AppCompareRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppTimesheetRoute: AppTimesheetRoute,
   AppAdminTemplatesRoute: AppAdminTemplatesRoute,
   AppAdminUsersRoute: AppAdminUsersRoute,
   AppProjectsIdRoute: AppProjectsIdRoute,

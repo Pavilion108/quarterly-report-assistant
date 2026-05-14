@@ -37,6 +37,17 @@ function AuthPage() {
     navigate({ to: "/dashboard" });
   };
 
+  const resetPassword = async () => {
+    if (!email) return toast.error("Please enter your corporate email first.");
+    setBusy(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Password reset link sent! Check your email.");
+  };
+
   const signUp = async () => {
     if (!email.endsWith("@dkothary.com")) {
       return toast.error("Registration is restricted to @dkothary.com email addresses only.");
@@ -156,6 +167,13 @@ function AuthPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-slate-700 text-sm font-semibold">Password</Label>
+                        <button 
+                          type="button" 
+                          onClick={resetPassword}
+                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                        >
+                          Forgot Password?
+                        </button>
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

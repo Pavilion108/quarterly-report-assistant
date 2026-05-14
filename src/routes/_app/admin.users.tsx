@@ -13,7 +13,7 @@ import { motion } from "framer-motion";
 import {
   Users, ShieldAlert, Activity, Settings2, CheckCheck, XCircle,
   UserCog, Clock, Database, FolderKanban, FileText, Radio, Zap,
-  RefreshCw, Trash2, Shield, Eye
+  RefreshCw, Trash2, Shield, Eye, Megaphone, Send, Mail
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/admin/users")({ component: GodsEye });
@@ -57,13 +57,18 @@ function GodsEye() {
   const [invitePassword, setInvitePassword] = useState("Dkc@1234");
   const [createdUser, setCreatedUser] = useState<{ email: string, pass: string } | null>(null);
 
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [annMessage, setAnnMessage] = useState("");
+  const [annProject, setAnnProject] = useState("all");
+
   const loadAll = useCallback(async () => {
     const [uRes, rRes, pRes, sRes, oRes] = await Promise.all([
-      supabase.rpc("admin_user_overview" as any).then(r => r.data ? r : supabase.from("profiles").select("*").order("name")),
+      supabase.rpc("get_admin_user_overview" as any).then(r => r.data ? r : supabase.from("profiles").select("*").order("name")),
       supabase.from("access_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("report_snapshots").select("*, projects:project_id(name)").order("created_at", { ascending: false }).limit(20),
       supabase.from("observations").select("id, created_at, original_text, project_id, projects:project_id(name)").order("created_at", { ascending: false }).limit(20),
+      supabase.from("announcements").select("*, projects:target_project_id(name), profiles:author_id(name)").order("created_at", { ascending: false })
     ]);
     // If RPC didn't return roles, manually join
     let userData = uRes.data ?? [];
@@ -76,14 +81,16 @@ function GodsEye() {
     setProjects(pRes.data ?? []);
     setSnapshots(sRes.data ?? []);
     setObservations(oRes.data ?? []);
+    setAnnouncements(annRes.data ?? []);
     setLastRefresh(new Date());
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  if (!roles.includes("admin")) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><p className="text-muted-foreground">Admin access required.</p></div>;
+  if (!roles.includes("admin") && !roles.includes("partner")) {
+    return <div className="flex items-center justify-center min-h-[60vh]"><p className="text-muted-foreground">Admin or Partner access required.</p></div>;
   }
+  const isAdmin = roles.includes("admin");
 
   const setRole = async (userId: string, role: string) => {
     setBusy(userId);
@@ -146,6 +153,44 @@ function GodsEye() {
     setBusy(null);
   };
 
+  const sendSetupLink = async (email: string) => {
+    setBusy(`setup-${email}`);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`Setup link emailed to ${email}`);
+    }
+    setBusy(null);
+  };
+
+  const postAnnouncement = async () => {
+    if (!annMessage.trim()) return toast.error("Please enter an announcement message.");
+    setBusy("announcement");
+    const payload = {
+      message: annMessage.trim(),
+      target_project_id: annProject === "all" ? null : annProject,
+    };
+    const { error } = await supabase.from("announcements").insert(payload);
+    if (error) { toast.error(error.message); setBusy(null); return; }
+    toast.success("Announcement broadcasted successfully!");
+    setAnnMessage("");
+    setAnnProject("all");
+    await loadAll();
+    setBusy(null);
+  };
+
+  const deleteAnnouncement = async (id: string) => {
+    setBusy(id);
+    const { error } = await supabase.from("announcements").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else toast.success("Announcement deleted");
+    await loadAll();
+    setBusy(null);
+  };
+
   const pendingCount = requests.filter(r => r.status === "pending").length;
   const totalObs = observations.length;
 
@@ -174,8 +219,8 @@ function GodsEye() {
             <Shield className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">God's Eye</h1>
-            <p className="text-xs text-slate-500 flex items-center gap-1"><Radio className="h-3 w-3 text-emerald-500 animate-pulse" /> System Command Center</p>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{isAdmin ? "God's Eye" : "Command Center"}</h1>
+            <p className="text-xs text-slate-500 flex items-center gap-1"><Radio className="h-3 w-3 text-emerald-500 animate-pulse" /> System Active</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -187,25 +232,32 @@ function GodsEye() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={Users} label="Total Users" value={users.length} color="bg-blue-50 text-blue-600" />
-        <StatCard icon={FolderKanban} label="Projects" value={projects.length} color="bg-emerald-50 text-emerald-600" />
-        <StatCard icon={ShieldAlert} label="Pending Requests" value={pendingCount} color="bg-amber-50 text-amber-600" />
-        <StatCard icon={Database} label="Observations" value={totalObs} color="bg-violet-50 text-violet-600" />
-      </div>
+      {isAdmin && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard icon={Users} label="Total Users" value={users.length} color="bg-blue-50 text-blue-600" />
+          <StatCard icon={FolderKanban} label="Projects" value={projects.length} color="bg-emerald-50 text-emerald-600" />
+          <StatCard icon={ShieldAlert} label="Pending Requests" value={pendingCount} color="bg-amber-50 text-amber-600" />
+          <StatCard icon={Database} label="Observations" value={totalObs} color="bg-violet-50 text-violet-600" />
+        </div>
+      )}
 
       {/* Main Tabs */}
-      <Tabs defaultValue="users">
+      <Tabs defaultValue={isAdmin ? "users" : "intel"}>
         <TabsList className="bg-white border border-slate-200 shadow-sm rounded-lg h-10 p-1">
-          <TabsTrigger value="users" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5">
-            <UserCog className="h-3.5 w-3.5" /> Users
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="users" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5">
+              <UserCog className="h-3.5 w-3.5" /> Users
+            </TabsTrigger>
+          )}
           <TabsTrigger value="requests" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5 relative">
             <ShieldAlert className="h-3.5 w-3.5" /> Requests
             {pendingCount > 0 && <span className="ml-1 bg-red-500 text-white text-[10px] rounded-full px-1.5 py-0.5 font-bold">{pendingCount}</span>}
           </TabsTrigger>
           <TabsTrigger value="intel" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5">
-            <Activity className="h-3.5 w-3.5" /> Intel Feed
+            <Activity className="h-3.5 w-3.5" /> Intel
+          </TabsTrigger>
+          <TabsTrigger value="broadcast" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5">
+            <Megaphone className="h-3.5 w-3.5" /> Broadcast
           </TabsTrigger>
           <TabsTrigger value="controls" className="text-slate-500 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 rounded-md text-xs gap-1.5">
             <Settings2 className="h-3.5 w-3.5" /> Controls
@@ -213,8 +265,9 @@ function GodsEye() {
         </TabsList>
 
         {/* ── USERS TAB ── */}
-        <TabsContent value="users" className="mt-4 space-y-4">
-          <Card className="bg-white border-slate-200 shadow-sm">
+        {isAdmin && (
+          <TabsContent value="users" className="mt-4 space-y-4">
+            <Card className="bg-white border-slate-200 shadow-sm">
             <CardHeader className="pb-3 border-b border-slate-100">
               <CardTitle className="text-slate-900 text-base flex items-center gap-2"><UserCog className="h-4 w-4 text-slate-700" /> Create New User Account</CardTitle>
             </CardHeader>
@@ -280,42 +333,61 @@ function GodsEye() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-slate-900 truncate">{u.name || "—"}</span>
                       {u.role && <Badge variant="outline" className={`text-[10px] uppercase font-bold tracking-wider ${ROLE_COLORS[u.role] ?? "text-slate-600"}`}>{u.role}</Badge>}
+                      {u.last_seen && (
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1 ml-2">
+                          <div className={`w-1.5 h-1.5 rounded-full ${new Date().getTime() - new Date(u.last_seen).getTime() < 300000 ? 'bg-green-500 animate-pulse' : 'bg-slate-300'}`} />
+                          {new Date().getTime() - new Date(u.last_seen).getTime() < 300000 ? 'Online' : timeAgo(u.last_seen)}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-xs text-slate-500 truncate font-mono">{u.email}</div>
+                    <div className="text-xs text-slate-500 truncate font-mono mt-0.5">{u.email}</div>
                   </div>
-                  <Select value={u.role ?? "member"} onValueChange={(v) => setRole(u.id, v)} disabled={busy === u.id}>
-                    <SelectTrigger className="w-32 shrink-0 bg-white border-slate-200 text-slate-700 text-xs h-8"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="partner">Partner</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 h-8 w-8 shrink-0" 
+                      title="Send Portal Invite (via Supabase)"
+                      disabled={busy === `setup-${u.email}`}
+                      onClick={() => sendSetupLink(u.email)}
+                    >
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                    <Select value={u.role ?? "member"} onValueChange={(v) => setRole(u.id, v)} disabled={busy === u.id}>
+                      <SelectTrigger className="w-32 shrink-0 bg-white border-slate-200 text-slate-700 text-xs h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="manager">Manager</SelectItem>
+                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="partner">Partner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               ))}
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
         {/* ── ACCESS REQUESTS TAB ── */}
         <TabsContent value="requests" className="mt-4">
-          <Card className="bg-white/[0.03] border-white/[0.08]">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-white text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-amber-400" /> Access Requests</CardTitle>
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-slate-100">
+              <CardTitle className="text-slate-900 text-base flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-amber-500" /> Access Requests</CardTitle>
               {pendingCount > 0 && (
-                <Button size="sm" variant="outline" className="border-green-500/30 text-green-400 hover:bg-green-500/10 h-8 text-xs" disabled={busy === "accept-all"} onClick={acceptAllRequests}>
+                <Button size="sm" variant="outline" className="border-green-200 text-green-600 hover:bg-green-50 h-8 text-xs" disabled={busy === "accept-all"} onClick={acceptAllRequests}>
                   <CheckCheck className="h-3.5 w-3.5 mr-1.5" /> Accept All ({pendingCount})
                 </Button>
               )}
             </CardHeader>
-            <CardContent className="space-y-1.5">
+            <CardContent className="space-y-1.5 pt-4">
               {requests.length === 0 && <p className="text-sm text-slate-500 py-6 text-center">No access requests.</p>}
               {requests.map((req) => (
-                <div key={req.id} className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-3 gap-4 hover:bg-white/[0.04] transition-colors">
+                <div key={req.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 gap-4 hover:bg-slate-100 transition-colors">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-white truncate">{req.name || req.email}</span>
+                      <span className="text-sm font-medium text-slate-900 truncate">{req.name || req.email}</span>
                       <Badge variant="outline" className={
                         req.status === "pending" ? "bg-yellow-500/20 text-yellow-300 border-yellow-500/30 text-[10px]"
                           : req.status === "approved" ? "bg-green-500/20 text-green-300 border-green-500/30 text-[10px]"
@@ -327,10 +399,10 @@ function GodsEye() {
                   </div>
                   {req.status === "pending" && (
                     <div className="flex gap-2 shrink-0">
-                      <Button size="sm" variant="outline" className="text-green-400 border-green-500/30 hover:bg-green-500/10 h-7 text-xs" disabled={busy === req.id} onClick={() => reviewRequest(req.id, "approved")}>
+                      <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50 h-7 text-xs" disabled={busy === req.id} onClick={() => reviewRequest(req.id, "approved")}>
                         <CheckCheck className="h-3 w-3 mr-1" /> Approve
                       </Button>
-                      <Button size="sm" variant="outline" className="text-red-400 border-red-500/30 hover:bg-red-500/10 h-7 text-xs" disabled={busy === req.id} onClick={() => reviewRequest(req.id, "rejected")}>
+                      <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 h-7 text-xs" disabled={busy === req.id} onClick={() => reviewRequest(req.id, "rejected")}>
                         <XCircle className="h-3 w-3 mr-1" /> Reject
                       </Button>
                     </div>
@@ -343,18 +415,18 @@ function GodsEye() {
 
         {/* ── INTEL FEED TAB ── */}
         <TabsContent value="intel" className="mt-4">
-          <Card className="bg-white/[0.03] border-white/[0.08]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base flex items-center gap-2"><Activity className="h-4 w-4 text-cyan-400" /> Live Activity Intel</CardTitle>
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-slate-900 text-base flex items-center gap-2"><Activity className="h-4 w-4 text-cyan-600" /> Live Activity Intel</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {activityFeed.length === 0 ? (
                 <p className="text-sm text-slate-500 py-6 text-center">No activity recorded yet.</p>
               ) : (
                 <div className="space-y-0.5">
                   {activityFeed.map((a, i) => (
                     <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
-                      className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.03] transition-colors group"
+                      className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors group"
                     >
                       <div className={`w-7 h-7 rounded-md grid place-items-center shrink-0 mt-0.5 ${
                         a.type === "project" ? "bg-emerald-500/15 text-emerald-400" :
@@ -365,8 +437,8 @@ function GodsEye() {
                         <a.icon className="h-3.5 w-3.5" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-300 truncate">{a.text}</p>
-                        <p className="text-[10px] text-slate-600 font-mono flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> {timeAgo(a.time)}</p>
+                        <p className="text-sm text-slate-700 truncate">{a.text}</p>
+                        <p className="text-[10px] text-slate-500 font-mono flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> {timeAgo(a.time)}</p>
                       </div>
                     </motion.div>
                   ))}
@@ -376,59 +448,124 @@ function GodsEye() {
           </Card>
         </TabsContent>
 
+        {/* ── BROADCAST TAB ── */}
+        <TabsContent value="broadcast" className="mt-4 space-y-4">
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-slate-900 text-base flex items-center gap-2"><Megaphone className="h-4 w-4 text-indigo-500" /> New Announcement</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-4">
+              <div className="space-y-2">
+                <Input 
+                  placeholder="Type your announcement message here..." 
+                  value={annMessage} 
+                  onChange={(e) => setAnnMessage(e.target.value)} 
+                  className="bg-white"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Select value={annProject} onValueChange={setAnnProject}>
+                  <SelectTrigger className="w-[250px] bg-white">
+                    <SelectValue placeholder="Target Audience" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Global (All Users & Engagements)</SelectItem>
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id}>Project: {p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={postAnnouncement} disabled={busy === "announcement"} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                  <Send className="h-4 w-4 mr-2" /> Broadcast
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-slate-200 shadow-sm">
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <CardTitle className="text-slate-900 text-base flex items-center gap-2"><Clock className="h-4 w-4 text-slate-500" /> Announcement History</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-2">
+              {announcements.length === 0 ? (
+                <p className="text-sm text-slate-500 py-6 text-center">No active announcements.</p>
+              ) : (
+                announcements.map(ann => (
+                  <div key={ann.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className={ann.target_project_id ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-indigo-50 text-indigo-700 border-indigo-200"}>
+                          {ann.target_project_id ? (ann.projects?.name || "Unknown Project") : "Global"}
+                        </Badge>
+                        <span className="text-xs text-slate-400 font-mono">{timeAgo(ann.created_at)} by {ann.profiles?.name || 'Admin'}</span>
+                      </div>
+                      <p className="text-sm text-slate-700">{ann.message}</p>
+                    </div>
+                    <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0" onClick={() => deleteAnnouncement(ann.id)} disabled={busy === ann.id}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* ── SYSTEM CONTROLS TAB ── */}
         <TabsContent value="controls" className="mt-4">
           <div className="grid md:grid-cols-2 gap-4">
             {/* Quick Actions */}
-            <Card className="bg-white/[0.03] border-white/[0.08]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-white text-base flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-400" /> Quick Actions</CardTitle>
+            <Card className="bg-white border-slate-200 shadow-sm">
+              <CardHeader className="pb-3 border-b border-slate-100">
+                <CardTitle className="text-slate-900 text-base flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-500" /> Quick Actions</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start border-white/[0.08] text-slate-300 hover:bg-white/5 hover:text-white h-10" onClick={acceptAllRequests} disabled={pendingCount === 0 || busy === "accept-all"}>
-                  <CheckCheck className="h-4 w-4 mr-2 text-green-400" /> Accept All Pending Requests
-                  {pendingCount > 0 && <Badge className="ml-auto bg-green-500/20 text-green-300 border-0 text-[10px]">{pendingCount}</Badge>}
+              <CardContent className="space-y-2 pt-4">
+                <Button variant="outline" className="w-full justify-start text-slate-700 hover:bg-slate-50 h-10" onClick={acceptAllRequests} disabled={pendingCount === 0 || busy === "accept-all"}>
+                  <CheckCheck className="h-4 w-4 mr-2 text-green-500" /> Accept All Pending Requests
+                  {pendingCount > 0 && <Badge className="ml-auto bg-green-100 text-green-700 border-0 text-[10px]">{pendingCount}</Badge>}
                 </Button>
-                <Button variant="outline" className="w-full justify-start border-white/[0.08] text-slate-300 hover:bg-white/5 hover:text-white h-10" onClick={loadAll}>
-                  <RefreshCw className="h-4 w-4 mr-2 text-cyan-400" /> Force Refresh All Data
+                <Button variant="outline" className="w-full justify-start text-slate-700 hover:bg-slate-50 h-10" onClick={loadAll}>
+                  <RefreshCw className="h-4 w-4 mr-2 text-cyan-500" /> Force Refresh All Data
                 </Button>
-                <Button variant="outline" className="w-full justify-start border-white/[0.08] text-slate-300 hover:bg-red-500/5 hover:text-red-300 h-10"
+                <Button variant="outline" className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50 h-10"
                   onClick={async () => {
                     const rejected = requests.filter(r => r.status === "rejected");
                     for (const r of rejected) { await supabase.from("access_requests").delete().eq("id", r.id); }
                     toast.success(`Cleared ${rejected.length} rejected requests`);
                     loadAll();
                   }}>
-                  <Trash2 className="h-4 w-4 mr-2 text-red-400" /> Clear Rejected Requests
+                  <Trash2 className="h-4 w-4 mr-2 text-red-500" /> Clear Rejected Requests
                 </Button>
               </CardContent>
             </Card>
 
             {/* System Status */}
-            <Card className="bg-white/[0.03] border-white/[0.08]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-white text-base flex items-center gap-2"><Settings2 className="h-4 w-4 text-slate-400" /> System Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { label: "Database", status: "Online", color: "bg-green-500" },
-                  { label: "Auth Service", status: "Active", color: "bg-green-500" },
-                  { label: "Domain Lock", status: "@dkothary.com", color: "bg-blue-500" },
-                  { label: "RLS Policies", status: "Enforced", color: "bg-green-500" },
-                ].map(s => (
-                  <div key={s.label} className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.05]">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${s.color} animate-pulse`} />
-                      <span className="text-sm text-slate-300">{s.label}</span>
+            {isAdmin && (
+              <Card className="bg-white border-slate-200 shadow-sm">
+                <CardHeader className="pb-3 border-b border-slate-100">
+                  <CardTitle className="text-slate-900 text-base flex items-center gap-2"><Settings2 className="h-4 w-4 text-slate-500" /> System Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-4">
+                  {[
+                    { label: "Database", status: "Online", color: "bg-green-500" },
+                    { label: "Auth Service", status: "Active", color: "bg-green-500" },
+                    { label: "Domain Lock", status: "@dkothary.com", color: "bg-blue-500" },
+                    { label: "RLS Policies", status: "Enforced", color: "bg-green-500" },
+                  ].map(s => (
+                    <div key={s.label} className="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${s.color} animate-pulse`} />
+                        <span className="text-sm text-slate-700">{s.label}</span>
+                      </div>
+                      <span className="text-xs text-slate-500 font-mono">{s.status}</span>
                     </div>
-                    <span className="text-xs text-slate-500 font-mono">{s.status}</span>
+                  ))}
+                  <div className="pt-2 text-[10px] text-slate-400 font-mono text-center">
+                    NODE v20 · VITE SPA · SUPABASE RLS · VERCEL EDGE
                   </div>
-                ))}
-                <div className="pt-2 text-[10px] text-slate-600 font-mono text-center">
-                  NODE v20 · VITE SPA · SUPABASE RLS · VERCEL EDGE
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>

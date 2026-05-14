@@ -8,9 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import {
   Plus, Calendar, Search, BarChart2, Activity, Clock, Building,
-  Users, Globe, FolderOpen, CheckCircle2, AlertCircle, ArrowRight, Layers
+  Users, Globe, FolderOpen, CheckCircle2, AlertCircle, ArrowRight, Layers,
+  Megaphone
 } from "lucide-react";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { motion } from "framer-motion";
@@ -20,15 +25,21 @@ export const Route = createFileRoute("/_app/dashboard")({
 });
 
 function Dashboard() {
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
+  const [allLogs, setAllLogs] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState("");
+  const [activityTask, setActivityTask] = useState("");
+  const [activityNotes, setActivityNotes] = useState("");
+  const [submittingActivity, setSubmittingActivity] = useState(false);
   const [projectMeta, setProjectMeta] = useState<Record<string, any>>({});
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showWizard, setShowWizard] = useState(false);
   const navigate = useNavigate();
-  const canCreate = roles.includes("manager") || roles.includes("admin");
+  const canCreate = true;
 
   useEffect(() => {
     async function load() {
@@ -38,12 +49,15 @@ function Dashboard() {
         const projectIds = p.map((pr: any) => pr.id);
 
         // Fetch enriched metadata per project: member count, focus area count, log counts
-        const [membersRes, areasRes, logsRes, obsRes] = await Promise.all([
+        const [membersRes, areasRes, logsRes, obsRes, annRes] = await Promise.all([
           supabase.from("project_members").select("project_id").in("project_id", projectIds),
           supabase.from("focus_areas").select("project_id, name").in("project_id", projectIds),
-          supabase.from("daily_logs").select("project_id, tasks, created_at, profiles:user_id(name)").in("project_id", projectIds).order("created_at", { ascending: false }).limit(100),
+          supabase.from("daily_logs").select("id, project_id, tasks, progress_notes, created_at, log_date, profiles:user_id(name), projects:project_id(name)").in("project_id", projectIds).order("created_at", { ascending: false }).limit(100),
           supabase.from("observations").select("*, projects:project_id(name), profiles:author_id(name)").in("project_id", projectIds).order("created_at", { ascending: false }).limit(5),
+          supabase.from("announcements").select("*, profiles:author_id(name), projects:target_project_id(name)").order("created_at", { ascending: false }),
         ]);
+
+        setAnnouncements(annRes.data ?? []);
 
         // Build per-project meta
         const meta: Record<string, any> = {};
@@ -78,6 +92,7 @@ function Dashboard() {
           };
         }
         setProjectMeta(meta);
+        setAllLogs(logsRes.data ?? []);
 
         const combined = [
           ...(logsRes.data ?? []).slice(0, 5).map((l: any) => ({
@@ -103,6 +118,36 @@ function Dashboard() {
     }
     load();
   }, [canCreate]);
+
+  const handleSubmitActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProject || !activityTask.trim() || !user) return;
+    setSubmittingActivity(true);
+    
+    const { error } = await supabase.from("daily_logs").insert({
+      project_id: selectedProject,
+      user_id: user.id,
+      tasks: activityTask,
+      progress_notes: activityNotes,
+      log_date: new Date().toISOString().split('T')[0]
+    });
+
+    if (error) {
+      toast.error("Failed to submit activity");
+    } else {
+      toast.success("Activity submitted successfully");
+      setActivityTask("");
+      setActivityNotes("");
+      
+      const { data } = await supabase.from("daily_logs")
+        .select("id, project_id, tasks, progress_notes, created_at, log_date, profiles:user_id(name), projects:project_id(name)")
+        .in("project_id", projects.map(p => p.id))
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (data) setAllLogs(data);
+    }
+    setSubmittingActivity(false);
+  };
 
   const filtered = useMemo(
     () => projects.filter(p =>
@@ -142,6 +187,32 @@ function Dashboard() {
     <div className="max-w-7xl mx-auto space-y-8">
       {showWizard && <OnboardingWizard onComplete={() => setShowWizard(false)} />}
 
+      {/* Announcements Banner */}
+      {announcements.length > 0 && (
+        <div className="space-y-3">
+          {announcements.map((ann, i) => (
+            <motion.div key={ann.id} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+              className={`rounded-lg border p-4 shadow-sm flex items-start gap-3 ${ann.target_project_id ? "bg-blue-50 border-blue-200" : "bg-indigo-50 border-indigo-200"}`}
+            >
+              <div className={`mt-0.5 p-1.5 rounded-md ${ann.target_project_id ? "bg-blue-100 text-blue-700" : "bg-indigo-100 text-indigo-700"}`}>
+                <Megaphone className="h-4 w-4" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-xs font-bold uppercase tracking-wider ${ann.target_project_id ? "text-blue-800" : "text-indigo-800"}`}>
+                    {ann.target_project_id ? `Project: ${ann.projects?.name}` : "Global Announcement"}
+                  </span>
+                  <span className={`text-[10px] ${ann.target_project_id ? "text-blue-500" : "text-indigo-500"}`}>
+                    • {timeAgo(ann.created_at)} by {ann.profiles?.name || 'Admin'}
+                  </span>
+                </div>
+                <p className={`text-sm ${ann.target_project_id ? "text-blue-900" : "text-indigo-900"}`}>{ann.message}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -180,7 +251,14 @@ function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <Tabs defaultValue="overview" className="w-full space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="activities">Daily Activities</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-6 outline-none">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Project Cards */}
         <div className="lg:col-span-2 space-y-5">
           <div className="flex items-center justify-between">
@@ -368,7 +446,95 @@ function Dashboard() {
             </div>
           )}
         </div>
-      </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="activities" className="space-y-6 outline-none">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="bg-white border-slate-200 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Recent Activities</CardTitle>
+                  <CardDescription>What members did today across engagements</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {allLogs.length === 0 ? (
+                      <p className="text-sm text-slate-500">No activities recorded yet.</p>
+                    ) : (
+                      allLogs.map(log => (
+                        <div key={log.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm text-slate-900">{log.profiles?.name || "Unknown User"}</span>
+                              <span className="text-xs text-slate-500">•</span>
+                              <Badge className="bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 text-[10px] px-2 py-0 h-5">
+                                {log.projects?.name}
+                              </Badge>
+                            </div>
+                            <span className="text-xs text-slate-400">{timeAgo(log.created_at)}</span>
+                          </div>
+                          <p className="text-sm text-slate-700 mt-2">{log.tasks}</p>
+                          {log.progress_notes && (
+                            <p className="text-xs text-slate-500 mt-1 italic">{log.progress_notes}</p>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="space-y-6">
+              <Card className="bg-white border-slate-200 shadow-sm sticky top-6">
+                <CardHeader>
+                  <CardTitle>Log Activity</CardTitle>
+                  <CardDescription>What did you do today?</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmitActivity} className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-700">Engagement</label>
+                      <Select value={selectedProject} onValueChange={setSelectedProject}>
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Select engagement..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {projects.map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-700">Activities</label>
+                      <Textarea 
+                        placeholder="E.g. Completed scope 1..." 
+                        value={activityTask}
+                        onChange={e => setActivityTask(e.target.value)}
+                        className="resize-none h-20 bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-slate-700">Notes (Optional)</label>
+                      <Input 
+                        placeholder="Additional details..." 
+                        value={activityNotes}
+                        onChange={e => setActivityNotes(e.target.value)}
+                        className="bg-white"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={submittingActivity || !selectedProject || !activityTask.trim()}>
+                      {submittingActivity ? "Submitting..." : "Submit Activity"}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
