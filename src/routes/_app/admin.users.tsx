@@ -328,8 +328,10 @@ function GodsEye() {
             </CardHeader>
             <CardContent className="space-y-1.5 pt-4">
               {users.length === 0 && <p className="text-sm text-slate-500 py-6 text-center">No users found.</p>}
-              {users.map((u) => (
-                <div key={u.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 gap-4 hover:bg-slate-100 transition-colors">
+              {users.map((u) => {
+                const uid = u.id || u.user_id;
+                return (
+                <div key={uid} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 gap-4 hover:bg-slate-100 transition-colors">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-slate-900 truncate">{u.name || "—"}</span>
@@ -354,7 +356,7 @@ function GodsEye() {
                     >
                       <Mail className="h-4 w-4" />
                     </Button>
-                    <Select value={u.role ?? "member"} onValueChange={(v) => setRole(u.id, v)} disabled={busy === u.id}>
+                    <Select value={u.role ?? "member"} onValueChange={(v) => setRole(uid, v)} disabled={busy === uid}>
                       <SelectTrigger className="w-32 shrink-0 bg-white border-slate-200 text-slate-700 text-xs h-8"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
@@ -365,7 +367,8 @@ function GodsEye() {
                     </Select>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
         </TabsContent>
