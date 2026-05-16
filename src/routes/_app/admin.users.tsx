@@ -62,24 +62,22 @@ function GodsEye() {
   const [annProject, setAnnProject] = useState("all");
 
   const loadAll = useCallback(async () => {
-    const [uRes, rRes, pRes, sRes, oRes, annRes] = await Promise.all([
-      supabase.rpc("get_admin_user_overview" as any).then(r => (r.data && r.data.length > 0) ? r : supabase.from("profiles").select("*").order("name")),
+    // Direct queries — skip the fragile RPC entirely
+    const [profilesRes, rolesRes, rRes, pRes, sRes, oRes, annRes] = await Promise.all([
+      supabase.from("profiles").select("*").order("name"),
+      supabase.from("user_roles").select("*"),
       supabase.from("access_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("report_snapshots").select("*, projects:project_id(name)").order("created_at", { ascending: false }).limit(20),
       supabase.from("observations").select("id, created_at, original_text, project_id, projects:project_id(name)").order("created_at", { ascending: false }).limit(20),
       supabase.from("announcements").select("*, projects:target_project_id(name), profiles:author_id(name)").order("created_at", { ascending: false })
     ]);
-    // Normalize user data: RPC returns user_id, profiles returns id
-    let userData = (uRes.data ?? []).map((u: any) => ({
-      ...u,
-      id: u.id || u.user_id,  // Always ensure `id` is populated
+    // Build user list: each profile with its role joined
+    const allRoles = rolesRes.data ?? [];
+    const userData = (profilesRes.data ?? []).map((p: any) => ({
+      ...p,
+      role: allRoles.find((r: any) => r.user_id === p.id)?.role ?? null,
     }));
-    // If no role field present, manually join roles
-    if (userData.length > 0 && !("role" in userData[0])) {
-      const { data: rolesData } = await supabase.from("user_roles").select("*");
-      userData = userData.map((u: any) => ({ ...u, role: (rolesData ?? []).find((r: any) => r.user_id === u.id)?.role ?? null }));
-    }
     setUsers(userData);
     setRequests(rRes.data ?? []);
     setProjects(pRes.data ?? []);
@@ -96,18 +94,26 @@ function GodsEye() {
   }
   const isAdmin = roles.includes("admin");
 
-  const setRole = async (userId: string, role: string) => {
+  const setRole = async (userId: string, newRole: string) => {
     if (!userId) { toast.error("Cannot update: user ID is missing"); return; }
     setBusy(userId);
-    const { error: rpcErr } = await supabase.rpc("set_user_role" as any, { target_user_id: userId, new_role: role });
-    if (rpcErr) {
-      console.error("RPC set_user_role failed:", rpcErr.message, "— trying direct update");
-      await supabase.from("user_roles").delete().eq("user_id", userId);
-      const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: role as any });
-      if (error) { console.error("Direct insert also failed:", error.message); toast.error(error.message); setBusy(null); return; }
+    try {
+      // Step 1: Delete existing role for this user
+      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
+      if (delErr) console.warn("Delete old role:", delErr.message);
+      // Step 2: Insert the new role
+      const { error: insErr } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any });
+      if (insErr) {
+        console.error("Role insert failed:", insErr.message);
+        toast.error(`Failed to update role: ${insErr.message}`);
+        setBusy(null);
+        return;
+      }
+      toast.success(`Role updated to ${newRole}`);
+      await loadAll();
+    } catch (e: any) {
+      toast.error(e.message || "Unexpected error");
     }
-    toast.success("Role updated");
-    await loadAll();
     setBusy(null);
   };
 

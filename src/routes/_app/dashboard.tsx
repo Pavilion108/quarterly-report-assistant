@@ -172,7 +172,8 @@ function Dashboard() {
       target_project_id: targetProject,
     });
     if (error) {
-      toast.error("Failed to send broadcast");
+      console.error("Broadcast failed:", error.message, error.details, error.hint);
+      toast.error(`Broadcast failed: ${error.message}`);
     } else {
       toast.success("Broadcast sent successfully");
       setBroadcastMsg("");
