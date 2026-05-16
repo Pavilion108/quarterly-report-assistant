@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   Plus, Calendar, Search, BarChart2, Activity, Clock, Building,
   Users, Globe, FolderOpen, CheckCircle2, AlertCircle, ArrowRight, Layers,
@@ -35,6 +36,9 @@ function Dashboard() {
   const [projectMeta, setProjectMeta] = useState<Record<string, any>>({});
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [broadcastMsg, setBroadcastMsg] = useState("");
+  const [targetProject, setTargetProject] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showWizard, setShowWizard] = useState(false);
@@ -58,6 +62,16 @@ function Dashboard() {
         ]);
 
         setAnnouncements(annRes.data ?? []);
+
+        // Listen for new announcements
+        const channel = supabase.channel('realtime-announcements')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, () => {
+            // Re-fetch announcements to get relations (like profile name)
+            supabase.from("announcements").select("*, profiles:author_id(name), projects:target_project_id(name)").order("created_at", { ascending: false }).then(res => {
+              if (res.data) setAnnouncements(res.data);
+            });
+          })
+          .subscribe();
 
         // Build per-project meta
         const meta: Record<string, any> = {};
@@ -149,6 +163,41 @@ function Dashboard() {
     setSubmittingActivity(false);
   };
 
+  const handleBroadcast = async () => {
+    if (!broadcastMsg.trim() || !user) return;
+    setBroadcasting(true);
+    const { error } = await supabase.from("announcements").insert({
+      message: broadcastMsg,
+      author_id: user.id,
+      target_project_id: targetProject,
+    });
+    if (error) {
+      toast.error("Failed to send broadcast");
+    } else {
+      toast.success("Broadcast sent successfully");
+      setBroadcastMsg("");
+      const { data } = await supabase.from("announcements").select("*, profiles:author_id(name), projects:target_project_id(name)").order("created_at", { ascending: false });
+      setAnnouncements(data ?? []);
+    }
+    setBroadcasting(false);
+  };
+
+  const groupedLogs = useMemo(() => {
+    const groups: Record<string, Record<string, any[]>> = {};
+    
+    allLogs.forEach(log => {
+      const date = log.log_date || new Date(log.created_at).toISOString().split('T')[0];
+      const userName = log.profiles?.name || "Unknown User";
+      
+      if (!groups[date]) groups[date] = {};
+      if (!groups[date][userName]) groups[date][userName] = [];
+      
+      groups[date][userName].push(log);
+    });
+    
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [allLogs]);
+
   const filtered = useMemo(
     () => projects.filter(p =>
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -184,7 +233,7 @@ function Dashboard() {
   const totalCompleted = Object.values(projectMeta).reduce((s: number, m: any) => s + (m.completedCount ?? 0), 0);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
+    <Tabs defaultValue="overview" className="max-w-7xl mx-auto space-y-8 w-full">
       {showWizard && <OnboardingWizard onComplete={() => setShowWizard(false)} />}
 
       {/* Announcements Banner */}
@@ -214,15 +263,62 @@ function Dashboard() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Workload Overview</h1>
           <p className="text-sm text-muted-foreground mt-1">Active audit engagements and firm workflow</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => navigate({ to: "/compare" } as any)}>
+        <div className="flex flex-wrap items-center gap-3">
+          <TabsList className="h-9 bg-white border border-slate-200">
+            <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
+            <TabsTrigger value="activities" className="text-xs">Daily Activities</TabsTrigger>
+          </TabsList>
+
+          <Button variant="outline" className="h-9" onClick={() => navigate({ to: "/compare" } as any)}>
             <BarChart2 className="h-4 w-4 mr-2" /> Compare
           </Button>
+          {(roles.includes("admin") || roles.includes("partner")) && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                  <Megaphone className="h-4 w-4 mr-2" /> Broadcast
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Send Firm-wide Broadcast</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Message</label>
+                    <Textarea 
+                      placeholder="Enter your announcement..." 
+                      value={broadcastMsg}
+                      onChange={e => setBroadcastMsg(e.target.value)}
+                      className="h-32 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Target Project (Optional)</label>
+                    <Select value={targetProject || "global"} onValueChange={(v) => setTargetProject(v === "global" ? null : v)}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue placeholder="Select target..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="global">Global (All Users)</SelectItem>
+                        {projects.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={handleBroadcast} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" disabled={broadcasting || !broadcastMsg.trim()}>
+                    {broadcasting ? "Sending..." : "Send Announcement"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
           {canCreate && (
             <Button onClick={() => navigate({ to: "/projects/new" })}>
               <Plus className="h-4 w-4 mr-2" /> New Engagement
@@ -251,13 +347,8 @@ function Dashboard() {
         ))}
       </div>
 
-      <Tabs defaultValue="overview" className="w-full space-y-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="activities">Daily Activities</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="overview" className="space-y-6 outline-none">
+      <div className="w-full space-y-6">
+        <TabsContent value="overview" className="space-y-6 outline-none mt-0">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Project Cards */}
         <div className="lg:col-span-2 space-y-5">
@@ -458,26 +549,52 @@ function Dashboard() {
                   <CardDescription>What members did today across engagements</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {allLogs.length === 0 ? (
+                  <div className="space-y-8">
+                    {groupedLogs.length === 0 ? (
                       <p className="text-sm text-slate-500">No activities recorded yet.</p>
                     ) : (
-                      allLogs.map(log => (
-                        <div key={log.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm text-slate-900">{log.profiles?.name || "Unknown User"}</span>
-                              <span className="text-xs text-slate-500">•</span>
-                              <Badge className="bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 text-[10px] px-2 py-0 h-5">
-                                {log.projects?.name}
-                              </Badge>
-                            </div>
-                            <span className="text-xs text-slate-400">{timeAgo(log.created_at)}</span>
+                      groupedLogs.map(([date, users]) => (
+                        <div key={date} className="space-y-4">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                              {new Date(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                            </h3>
+                            {date === new Date().toISOString().split('T')[0] && (
+                              <Badge className="bg-blue-500 text-white hover:bg-blue-600 border-none text-[9px] px-1.5 py-0 h-4">TODAY</Badge>
+                            )}
+                            <div className="h-px bg-slate-100 flex-1" />
                           </div>
-                          <p className="text-sm text-slate-700 mt-2">{log.tasks}</p>
-                          {log.progress_notes && (
-                            <p className="text-xs text-slate-500 mt-1 italic">{log.progress_notes}</p>
-                          )}
+                          
+                          <div className="space-y-4">
+                            {Object.entries(users).map(([userName, logs]) => (
+                              <div key={userName} className="space-y-2">
+                                <div className="flex items-center gap-2 px-1">
+                                  <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-[9px]">
+                                    {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-900">{userName}</span>
+                                  <span className="text-[10px] text-slate-400 font-medium">({logs.length} logs)</span>
+                                </div>
+                                
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                  {logs.map((log: any) => (
+                                    <div key={log.id} className="bg-slate-50/50 p-3 rounded-lg border border-slate-100 hover:border-blue-100 transition-colors">
+                                      <div className="flex justify-between items-start mb-2">
+                                        <Badge variant="outline" className="bg-white text-blue-600 border-blue-100 text-[9px] px-1.5 py-0 h-4">
+                                          {log.projects?.name}
+                                        </Badge>
+                                        <span className="text-[9px] text-slate-400 font-medium">{timeAgo(log.created_at)}</span>
+                                      </div>
+                                      <p className="text-xs text-slate-700 leading-relaxed font-medium">{log.tasks}</p>
+                                      {log.progress_notes && (
+                                        <p className="text-[10px] text-slate-500 mt-2 pt-2 border-t border-slate-100/50 italic">{log.progress_notes}</p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       ))
                     )}
@@ -534,7 +651,7 @@ function Dashboard() {
             </div>
           </div>
         </TabsContent>
-      </Tabs>
-    </div>
+      </div>
+    </Tabs>
   );
 }

@@ -44,7 +44,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
 }
 
 function GodsEye() {
-  const { roles } = useAuth();
+  const { roles, user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -62,7 +62,7 @@ function GodsEye() {
   const [annProject, setAnnProject] = useState("all");
 
   const loadAll = useCallback(async () => {
-    const [uRes, rRes, pRes, sRes, oRes] = await Promise.all([
+    const [uRes, rRes, pRes, sRes, oRes, annRes] = await Promise.all([
       supabase.rpc("get_admin_user_overview" as any).then(r => r.data ? r : supabase.from("profiles").select("*").order("name")),
       supabase.from("access_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
@@ -172,6 +172,7 @@ function GodsEye() {
     const payload = {
       message: annMessage.trim(),
       target_project_id: annProject === "all" ? null : annProject,
+      author_id: user?.id,
     };
     const { error } = await supabase.from("announcements").insert(payload);
     if (error) { toast.error(error.message); setBusy(null); return; }
