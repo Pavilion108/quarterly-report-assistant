@@ -63,15 +63,19 @@ function GodsEye() {
 
   const loadAll = useCallback(async () => {
     const [uRes, rRes, pRes, sRes, oRes, annRes] = await Promise.all([
-      supabase.rpc("get_admin_user_overview" as any).then(r => r.data ? r : supabase.from("profiles").select("*").order("name")),
+      supabase.rpc("get_admin_user_overview" as any).then(r => (r.data && r.data.length > 0) ? r : supabase.from("profiles").select("*").order("name")),
       supabase.from("access_requests").select("*").order("created_at", { ascending: false }),
       supabase.from("projects").select("*").order("created_at", { ascending: false }),
       supabase.from("report_snapshots").select("*, projects:project_id(name)").order("created_at", { ascending: false }).limit(20),
       supabase.from("observations").select("id, created_at, original_text, project_id, projects:project_id(name)").order("created_at", { ascending: false }).limit(20),
       supabase.from("announcements").select("*, projects:target_project_id(name), profiles:author_id(name)").order("created_at", { ascending: false })
     ]);
-    // If RPC didn't return roles, manually join
-    let userData = uRes.data ?? [];
+    // Normalize user data: RPC returns user_id, profiles returns id
+    let userData = (uRes.data ?? []).map((u: any) => ({
+      ...u,
+      id: u.id || u.user_id,  // Always ensure `id` is populated
+    }));
+    // If no role field present, manually join roles
     if (userData.length > 0 && !("role" in userData[0])) {
       const { data: rolesData } = await supabase.from("user_roles").select("*");
       userData = userData.map((u: any) => ({ ...u, role: (rolesData ?? []).find((r: any) => r.user_id === u.id)?.role ?? null }));
@@ -93,12 +97,14 @@ function GodsEye() {
   const isAdmin = roles.includes("admin");
 
   const setRole = async (userId: string, role: string) => {
+    if (!userId) { toast.error("Cannot update: user ID is missing"); return; }
     setBusy(userId);
     const { error: rpcErr } = await supabase.rpc("set_user_role" as any, { target_user_id: userId, new_role: role });
     if (rpcErr) {
+      console.error("RPC set_user_role failed:", rpcErr.message, "— trying direct update");
       await supabase.from("user_roles").delete().eq("user_id", userId);
       const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: role as any });
-      if (error) { toast.error(error.message); setBusy(null); return; }
+      if (error) { console.error("Direct insert also failed:", error.message); toast.error(error.message); setBusy(null); return; }
     }
     toast.success("Role updated");
     await loadAll();
@@ -175,7 +181,7 @@ function GodsEye() {
       author_id: user?.id,
     };
     const { error } = await supabase.from("announcements").insert(payload);
-    if (error) { toast.error(error.message); setBusy(null); return; }
+    if (error) { console.error("Broadcast insert failed:", error.message, error.details, error.hint); toast.error(error.message); setBusy(null); return; }
     toast.success("Announcement broadcasted successfully!");
     setAnnMessage("");
     setAnnProject("all");
@@ -329,9 +335,8 @@ function GodsEye() {
             <CardContent className="space-y-1.5 pt-4">
               {users.length === 0 && <p className="text-sm text-slate-500 py-6 text-center">No users found.</p>}
               {users.map((u) => {
-                const uid = u.id || u.user_id;
                 return (
-                <div key={uid} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 gap-4 hover:bg-slate-100 transition-colors">
+                <div key={u.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 gap-4 hover:bg-slate-100 transition-colors">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-slate-900 truncate">{u.name || "—"}</span>
@@ -356,7 +361,7 @@ function GodsEye() {
                     >
                       <Mail className="h-4 w-4" />
                     </Button>
-                    <Select value={u.role ?? "member"} onValueChange={(v) => setRole(uid, v)} disabled={busy === uid}>
+                    <Select value={u.role ?? "member"} onValueChange={(v) => setRole(u.id, v)} disabled={busy === u.id}>
                       <SelectTrigger className="w-32 shrink-0 bg-white border-slate-200 text-slate-700 text-xs h-8"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
