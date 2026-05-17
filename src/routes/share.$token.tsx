@@ -15,15 +15,13 @@ function SharedReportView() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    supabase.from("shared_reports").select("*").eq("token", token).single().then(({ data: d, error: e }) => {
+    supabase.rpc('get_shared_report_by_token', { token_text: token }).then(({ data: d, error: e }) => {
       setLoading(false);
       if (e || !d) {
         setError("Report not found or link has expired.");
         return;
       }
       setData(d.snapshot);
-      // Increment view count silently
-      supabase.rpc('increment_view_count', { row_id: d.id }).then();
     });
   }, [token]);
 
